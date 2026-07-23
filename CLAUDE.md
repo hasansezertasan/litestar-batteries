@@ -11,17 +11,24 @@ reduce boilerplate in production Litestar services. It is a **library** (no CLI)
 
 ## Source of Truth
 
-This repo uses [Flow](https://github.com/cofin/flow) for planning. Its context lives under `.agents/`
-(`product.md`, `tech-stack.md`, `workflow.md`, `patterns.md`, `index.md`) and task state in Beads
-(`bd`). **These are local-only and not committed**, so a fresh clone won't have them — everything
-required to build and verify this project is captured in this file. If `.agents/` is present locally,
-read it first; otherwise this file is authoritative.
+This repo uses [Flow](https://github.com/cofin/flow) for planning. Its context is **committed** under
+`.agents/` — read it first:
+
+- `.agents/product.md`, `.agents/tech-stack.md`, `.agents/workflow.md` — what/why, stack, commands & lifecycle
+- `.agents/patterns.md` — elevated, reusable project patterns
+- `.agents/knowledge/` — synthesized reference (`architecture.md`, `conventions.md`)
+- `.agents/index.md` — full file resolution index
+
+Task state lives in **Beads** (`bd`). The Beads database (`.beads/`) is **not** in git — it syncs via a
+Dolt remote (`bd dolt pull`/`push`) — so a fresh clone has the docs but must pull Beads separately.
+This file remains self-sufficient for building and verifying regardless.
 
 ## Task Memory
 
-Beads (`bd`, dolt embedded backend, local-only) is the source of truth for task state.
+Beads (`bd`, dolt embedded backend) is the source of truth for task state. The DB is not committed;
+it syncs across machines via a Dolt remote.
 
-- Run `bd prime` at session start.
+- Run `bd prime` at session start. On a fresh clone, `bd bootstrap` / `bd dolt pull` restores history.
 - Never hand-edit task markers in spec files — run `/flow:sync` after Beads changes.
 
 ## Canonical Commands

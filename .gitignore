@@ -223,3 +223,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Beads task database (synced via Dolt remote, not git)
+.beads/

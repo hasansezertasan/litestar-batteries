@@ -1,0 +1,14 @@
+# Flow Registry
+
+> All flows and their current status. Updated as flows are created, implemented, and archived.
+
+## Active Flows
+
+_None. Run `/flow:flow-plan "<description>"` to start the next battery._
+
+## Archived Flows
+
+| Flow ID | Description | Completed | Location |
+|---------|-------------|-----------|----------|
+| project-foundation | Dev toolchain + CI (ruff, mypy, pyright, pytest, GH Actions matrix) | 2026-07-23 | [./archive/project-foundation/](./archive/project-foundation/) |
+| health-battery | First battery: HealthPlugin (liveness + readiness) | 2026-07-23 | [./archive/health-battery/](./archive/health-battery/) |
