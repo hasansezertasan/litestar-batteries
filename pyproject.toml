@@ -40,6 +40,14 @@ include = ["src", "tests"]
 pythonVersion = "3.10"
 typeCheckingMode = "strict"
 
+# Shipped code (src) stays fully strict. Tests exercise third-party helpers (e.g. Litestar's
+# create_test_client) whose broad signatures trip strict "unknown type" reporting, so silence
+# just that rule under tests/ — everything else remains strict.
+[[tool.pyright.executionEnvironments]]
+root = "tests"
+reportUnknownVariableType = false
+reportUnknownMemberType = false
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=litestar_batteries --cov-report=term-missing --cov-fail-under=80"
