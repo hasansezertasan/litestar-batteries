@@ -1,0 +1,20 @@
+{
+  "flow_id": "project-foundation",
+  "beads_epic_id": "litestar-batteries-52a",
+  "chapters": [
+    {
+      "id": "local-tooling",
+      "beads_epic_id": "litestar-batteries-axm",
+      "status": "complete"
+    },
+    {
+      "id": "ci-pipeline",
+      "beads_epic_id": "litestar-batteries-1yk",
+      "status": "complete"
+    }
+  ],
+  "created_at": "2026-07-23T00:00:00Z",
+  "updated_at": "2026-07-23T00:00:00Z",
+  "status": "archived",
+  "archived_at": "2026-07-23T00:00:00Z"
+}
