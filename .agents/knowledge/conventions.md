@@ -60,5 +60,14 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyr
 - Beads (`bd`) uses a dolt-embedded backend; the DB lives at `<project>/.beads/embeddeddolt`. The Flow
   auto-sync git hook is a no-op here (it keys off a `.beads/` dir next to `.agents/`, which this layout
   doesn't have), so `spec.md` markers are maintained manually — **Beads is the source of truth**.
-- Sync task state across machines with `bd dolt push` / `bd dolt pull` (`bd bootstrap` on a fresh clone).
+- **Beads Dolt remote:** `https://doltremoteapi.dolthub.com/hasansezertasan/litestar-batteries-beads`
+  ([web UI](https://www.dolthub.com/repositories/hasansezertasan/litestar-batteries-beads)). Sync task
+  state across machines with `bd dolt push` / `bd dolt pull` (`sync.remote` is configured locally).
+- **Restore Beads on a fresh clone / new machine:**
+  ```bash
+  # after `git clone` (which brings .agents/) and installing bd + dolt, from the repo root:
+  bd config set sync.remote https://doltremoteapi.dolthub.com/hasansezertasan/litestar-batteries-beads
+  bd bootstrap --yes    # clones the task DB from the remote into .beads/
+  bd stats              # expect the full issue history
+  ```
 - Commits follow Conventional Commits; branches Conventional Branch; PR titles Conventional PR.
