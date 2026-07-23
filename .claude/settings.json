@@ -1,0 +1,6 @@
+{
+  "plansDirectory": ".agents/specs",
+  "permissions": {
+    "defaultMode": "plan"
+  }
+}
