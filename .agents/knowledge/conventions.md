@@ -63,11 +63,13 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyr
 - **Beads Dolt remote:** `https://doltremoteapi.dolthub.com/hasansezertasan/litestar-batteries-beads`
   ([web UI](https://www.dolthub.com/repositories/hasansezertasan/litestar-batteries-beads)). Sync task
   state across machines with `bd dolt push` / `bd dolt pull` (`sync.remote` is configured locally).
-- **Restore Beads on a fresh clone / new machine:**
+- **Restore Beads on a fresh clone / new machine** (verified end-to-end):
   ```bash
   # after `git clone` (which brings .agents/) and installing bd + dolt, from the repo root:
-  bd config set sync.remote https://doltremoteapi.dolthub.com/hasansezertasan/litestar-batteries-beads
-  bd bootstrap --yes    # clones the task DB from the remote into .beads/
-  bd stats              # expect the full issue history
+  bd init --remote https://doltremoteapi.dolthub.com/hasansezertasan/litestar-batteries-beads \
+    --non-interactive --skip-agents          # clones the task DB from the remote into .beads/
+  bd stats                                     # expect the full issue history (15+ issues)
   ```
+  Note: `bd init --remote` is the correct entry point on a fresh clone — `bd config set` / `bd bootstrap`
+  fail there because no workspace exists yet. `--skip-agents` avoids writing a harness `AGENTS.md`.
 - Commits follow Conventional Commits; branches Conventional Branch; PR titles Conventional PR.
