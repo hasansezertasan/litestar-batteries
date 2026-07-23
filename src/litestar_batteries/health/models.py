@@ -3,26 +3,30 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import msgspec
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Sequence
 
+Status = Literal["ok", "error"]
+"""Health status of a check or the overall report."""
+
 
 class CheckResult(msgspec.Struct):
     """Outcome of a single readiness check."""
 
     name: str
-    status: str  # "ok" | "error"
+    status: Status
     error: str | None = None
 
 
 class HealthReport(msgspec.Struct):
     """Aggregate health/readiness report."""
 
-    status: str  # "ok" | "error"
+    status: Status
+    # msgspec treats an empty-literal default as a per-instance factory (no shared state).
     checks: list[CheckResult] = []
 
 

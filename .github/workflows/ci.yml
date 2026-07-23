@@ -17,7 +17,7 @@ jobs:
       - uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
-      - run: uv sync
+      - run: uv sync --frozen
       - name: ruff check
         run: uv run ruff check .
       - name: ruff format --check
@@ -30,9 +30,9 @@ jobs:
       - uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
-      - run: uv sync
+      - run: uv sync --frozen
       - name: mypy
-        run: uv run mypy src
+        run: uv run mypy
       - name: pyright
         run: uv run pyright
 
@@ -48,6 +48,6 @@ jobs:
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
-      - run: uv sync
+      - run: uv sync --frozen
       - name: pytest
         run: uv run pytest

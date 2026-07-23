@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from litestar import Controller, get
+from litestar.openapi.datastructures import ResponseSpec
 from litestar.response import Response
 from litestar.status_codes import HTTP_200_OK, HTTP_503_SERVICE_UNAVAILABLE
 
@@ -25,8 +26,18 @@ def build_health_controller(config: HealthConfig) -> type[Controller]:
         async def liveness(self) -> HealthReport:
             return HealthReport(status="ok")
 
-        @get("/ready")
+        @get(
+            "/ready",
+            responses={
+                HTTP_503_SERVICE_UNAVAILABLE: ResponseSpec(
+                    data_container=HealthReport,
+                    description="One or more readiness checks failed.",
+                ),
+            },
+        )
         async def readiness(self) -> Response[HealthReport]:
+            # Checks run sequentially in registration order; a slow check delays the
+            # rest. Keep individual checks fast, or aggregate concurrently upstream.
             results: list[CheckResult] = []
             healthy = True
             for hc in checks:
