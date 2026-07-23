@@ -21,7 +21,7 @@ uv run mypy                  # type check (or: uv run pyright)
 
 ### Before Committing
 ```bash
-uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest
+uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyright && uv run pytest
 ```
 
 > `ruff`, `mypy`, `pyright`, `pytest`, and `pytest-cov` are declared in `[dependency-groups].dev`
@@ -160,8 +160,8 @@ All tasks follow a strict lifecycle:
 9. **Record Task Completion (Beads-First):**
    - **Step 9.1: Get Commit Hash:** Obtain the hash of the *just-completed commit* (`git log -1 --format="%h"`).
    - **Step 9.2: Close in Beads:** use the active backend to record completion
-   - **Step 9.3 (Manual Sync):** Follow `syncPolicy.flowSyncAfterMutation`; when enabled, run `/flow-sync` so `spec.md` aligns with Beads.
-   - **Do NOT manually edit spec.md markers** - they are managed by running `/flow-sync`.
+   - **Step 9.3 (Manual Sync):** Follow `syncPolicy.flowSyncAfterMutation`; when enabled, run `/flow:sync` so `spec.md` aligns with Beads.
+   - **Do NOT manually edit spec.md markers** - they are managed by running `/flow:sync`.
 
 10. **Log Learnings:**
     - Append discoveries to track's `learnings.md`
@@ -263,7 +263,7 @@ Validated repo-native commands are also high-signal learnings. If the project al
     - Update the epic with verification summary using the active backend's note/comment command
 
 8. **Sync to spec.md (Manual):**
-    - Follow `syncPolicy.flowSyncAfterMutation`; when enabled, run `/flow-sync` so `spec.md` aligns with Beads for human-readable status.
+    - Follow `syncPolicy.flowSyncAfterMutation`; when enabled, run `/flow:sync` so `spec.md` aligns with Beads for human-readable status.
     - **Do NOT manually edit spec.md** - Beads is source of truth, and you must sync it using the command.
 
 9. **Announce Completion:** Inform the user that the phase is complete and the checkpoint has been recorded in Beads.
@@ -426,7 +426,7 @@ A task is complete when:
 7. Implementation notes added to `spec.md`
 8. Changes committed with proper message
 9. Task closed in Beads with the active backend's completion command and commit reference
-10. Markdown synced manually by running `/flow-sync`.
+10. Markdown synced manually by running `/flow:sync`.
 11. No ignored Flow artifacts were force-added to git.
 
 ## Emergency Procedures
