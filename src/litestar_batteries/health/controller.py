@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from typing import TYPE_CHECKING
 
 from litestar import Controller, get
@@ -13,7 +14,33 @@ from litestar.status_codes import HTTP_200_OK, HTTP_503_SERVICE_UNAVAILABLE
 from litestar_batteries.health.models import CheckResult, HealthReport
 
 if TYPE_CHECKING:
-    from litestar_batteries.health.models import HealthConfig
+    from litestar_batteries.health.models import HealthCheck, HealthConfig
+
+
+class _DeadlineExceeded(Exception):
+    """Internal marker: the readiness wrapper's per-check timeout elapsed."""
+
+
+async def _run_check(hc: HealthCheck) -> None:
+    """Await ``hc.check()``, bounded by ``hc.timeout`` when set.
+
+    Raises ``_DeadlineExceeded`` only when the wrapper's own deadline elapses. An
+    exception raised by the check itself — including an ``asyncio.TimeoutError`` from
+    its own client — propagates unchanged so it keeps its real message. The two are
+    told apart by *mechanism* (a task still pending past the deadline), because
+    ``asyncio.wait_for`` conflates them by exception type.
+    """
+    if hc.timeout is None:
+        await hc.check()
+        return
+    task = asyncio.ensure_future(hc.check())
+    done, _pending = await asyncio.wait({task}, timeout=hc.timeout)
+    if task not in done:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        raise _DeadlineExceeded
+    task.result()  # re-raise the check's own exception, if it failed
 
 
 def build_health_controller(config: HealthConfig) -> type[Controller]:
@@ -44,11 +71,8 @@ def build_health_controller(config: HealthConfig) -> type[Controller]:
             healthy = True
             for hc in checks:
                 try:
-                    if hc.timeout is not None:
-                        await asyncio.wait_for(hc.check(), hc.timeout)
-                    else:
-                        await hc.check()
-                except asyncio.TimeoutError:  # check exceeded its per-check timeout
+                    await _run_check(hc)
+                except _DeadlineExceeded:  # the wrapper's own per-check deadline
                     healthy = False
                     timed_out = f"timed out after {hc.timeout}s"
                     results.append(CheckResult(name=hc.name, status="error", error=timed_out))

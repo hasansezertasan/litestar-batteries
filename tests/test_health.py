@@ -17,7 +17,15 @@ async def _fail() -> None:
 
 
 async def _slow() -> None:
-    await asyncio.sleep(1)
+    await asyncio.sleep(0.2)
+
+
+async def _raise_timeout() -> None:
+    # A check whose own dependency (db/http client) timed out, surfaced as
+    # asyncio.TimeoutError — the SAME type wait_for raises for its deadline, so
+    # the readiness handler must not conflate the two. (On 3.10 asyncio.TimeoutError
+    # is distinct from builtin TimeoutError; raise the exact type to be version-proof.)
+    raise asyncio.TimeoutError("upstream db timeout")
 
 
 def test_liveness_always_ok() -> None:
@@ -69,12 +77,38 @@ def test_readiness_check_timeout_returns_503() -> None:
 
 
 def test_readiness_timeout_none_is_unbounded() -> None:
-    # A quick check with the default timeout=None still passes (no time bound applied).
-    config = HealthConfig(checks=[HealthCheck("a", _ok)])
+    # A slow check with the default timeout=None still passes: no time bound is
+    # applied, so it must not be cut short (would fail if a finite default crept in).
+    config = HealthConfig(checks=[HealthCheck("slow", _slow)])
     with create_test_client(route_handlers=[], plugins=[HealthPlugin(config)]) as client:
         resp = client.get("/health/ready")
         assert resp.status_code == HTTP_200_OK
         assert resp.json()["status"] == "ok"
+
+
+def test_readiness_check_own_timeout_error_kept_unbounded() -> None:
+    # timeout=None: a TimeoutError raised BY the check is its real failure,
+    # not the wrapper deadline — surface its message, not "timed out after Nones".
+    config = HealthConfig(checks=[HealthCheck("db", _raise_timeout)])
+    with create_test_client(route_handlers=[], plugins=[HealthPlugin(config)]) as client:
+        resp = client.get("/health/ready")
+        assert resp.status_code == HTTP_503_SERVICE_UNAVAILABLE
+        db = next(c for c in resp.json()["checks"] if c["name"] == "db")
+        assert db["status"] == "error"
+        assert "upstream db timeout" in db["error"]
+        assert "timed out after" not in db["error"]
+
+
+def test_readiness_check_own_timeout_error_kept_bounded() -> None:
+    # Finite timeout: a check that raises its OWN TimeoutError immediately (well
+    # within budget) must surface its real error, not the wrapper deadline.
+    config = HealthConfig(checks=[HealthCheck("db", _raise_timeout, timeout=5.0)])
+    with create_test_client(route_handlers=[], plugins=[HealthPlugin(config)]) as client:
+        resp = client.get("/health/ready")
+        assert resp.status_code == HTTP_503_SERVICE_UNAVAILABLE
+        db = next(c for c in resp.json()["checks"] if c["name"] == "db")
+        assert "upstream db timeout" in db["error"]
+        assert "timed out after" not in db["error"]
 
 
 def test_readiness_within_timeout_passes() -> None:

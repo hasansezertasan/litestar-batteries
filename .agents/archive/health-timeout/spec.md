@@ -27,7 +27,7 @@ HealthConfig(checks=[
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Where the timeout lives | **Per-check only** — `HealthCheck.timeout: float | None = None` | Per-check tuning; no global `HealthConfig.check_timeout` field. |
+| Where the timeout lives | **Per-check only** — `HealthCheck.timeout: float \| None = None` | Per-check tuning; no global `HealthConfig.check_timeout` field. |
 | Default value | **`None`** (opt-in, no timeout) | Zero behavior change for existing users; the hang is bounded only once an operator sets a value. |
 | Primitive | **`asyncio.wait_for(hc.check(), hc.timeout)`** | Stdlib; works on Python 3.10. `asyncio.timeout()` context manager is 3.11+, so it is **not** used (repo supports 3.10+). |
 | Timeout surfacing | `CheckResult(status="error", error=f"timed out after {timeout}s")` → overall `503` | Reuses the existing failed-check path; no new response shape. |
@@ -99,9 +99,15 @@ for hc in checks:
 
 - `HealthCheck` is `@dataclass(frozen=True)`; a new field with a default is fine (all existing fields
   are positional/defaulted-safe — `name`, `check` have no defaults, `timeout` does, so ordering holds).
-- `asyncio.wait_for` cancels the inner coroutine on timeout and awaits its cancellation — no orphaned task.
 - Do **not** add a global `HealthConfig.check_timeout` (explicitly out of scope per locked decision).
-- A `timeout <= 0` will time out immediately (defined `wait_for` behavior); no extra validation required.
+
+> **Post-review correction (PR #8, `litestar-batteries-8lt.4`).** The originally-shipped `asyncio.wait_for`
+> approach (Task 2 snippet above) had a defect: `wait_for` raises `asyncio.TimeoutError` for its deadline,
+> but a check raising its *own* `asyncio.TimeoutError` surfaces as the same type, so `except asyncio.TimeoutError`
+> mislabeled it as the wrapper deadline (`"timed out after Nones"` on the `timeout=None` path). Fixed by
+> running the check as a task under `asyncio.wait({task}, timeout=...)` and detecting the deadline by
+> **mechanism** (task still pending → cancel → raise a private `_DeadlineExceeded`); `task.result()`
+> re-raises the check's own exception unchanged. See `controller.py` and `patterns.md`.
 
 ## Definition of Done
 

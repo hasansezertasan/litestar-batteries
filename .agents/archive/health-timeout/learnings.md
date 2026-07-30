@@ -24,3 +24,16 @@
   extracted the message to a `timed_out` local. Keep timeout error construction on its own line.
 - Full gate green: ruff check/format, mypy strict, pyright strict (0 errors), pytest 10 passed,
   100% coverage.
+
+## Task 4 — PR #8 review fix (`…-8lt.4`)
+
+- **Codex + CodeRabbit (correctness):** the first-cut `asyncio.wait_for` + `except asyncio.TimeoutError`
+  conflated the wrapper deadline with a `TimeoutError` raised by the check itself (same exception type),
+  mislabeling the check's own error — worst case `"timed out after Nones"` on the `timeout=None` path.
+  Fix: run the check as a task, `await asyncio.wait({task}, timeout=...)`, detect the deadline by
+  *mechanism* (still pending → cancel → raise private `_DeadlineExceeded`), and `task.result()` to
+  re-raise the check's own exception unchanged. Added two regression tests (bounded + unbounded).
+- **CodeRabbit (test strength):** `test_readiness_timeout_none_is_unbounded` used the instant `_ok`, which
+  couldn't catch an accidental finite default — switched it to a slow check (`_slow`, 0.2s sleep).
+- **CodeRabbit (docs lint):** `float | None` inside the spec.md Decisions table broke MD056; escaped the pipe.
+- Gate green: pytest 12 passed, 100% coverage.
