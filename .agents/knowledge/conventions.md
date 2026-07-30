@@ -59,14 +59,18 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyr
   git-ignored (local cache); the **`.beads/issues.jsonl` export is git-tracked** and is the portable
   source of truth. `.gitignore` uses `.beads/*` + `!.beads/issues.jsonl`. `CLAUDE.md` is still kept
   self-authoritative so the repo builds without any Flow context.
-- Beads (`bd`) uses the embedded Dolt engine; the DB lives at `<project>/.beads/embeddeddolt` (in this
-  Orca layout it resolves to the main checkout's `.beads/`). Flow's Beads→`spec.md` auto-sync is **not
-  relied upon** here: `spec.md` markers are updated manually via `/flow:sync`, and the committed
-  `.beads/issues.jsonl` ledger — not the ignored local Dolt store — is the source of truth.
+- Beads (`bd`) uses the embedded Dolt engine; the DB lives at the repo-root `.beads/embeddeddolt` (under
+  git worktrees — e.g. Orca — `bd` resolves it to the main checkout's `.beads/`). Flow's Beads→`spec.md`
+  auto-sync is **not relied upon** here: `spec.md` markers are updated manually via `/flow:sync`, and the
+  committed `.beads/issues.jsonl` ledger — not the ignored local Dolt store — is the source of truth.
 - **No remote:** task state is versioned in **git via the JSONL export**, not an external service (no
   DoltHub/Dolt remote); `bd dolt push` / `bd dolt pull` are not used (`.agents/beads.json` sets
-  `localOnly: true`, `allowDoltPush: false`). `bd` auto-exports to `.beads/issues.jsonl` after writes
-  (`export.auto: true`, `export.git-add: false` — commit it yourself via `/flow:sync` or git).
+  `localOnly: true`, `allowDoltPush: false`).
+- **Refreshing the ledger:** `bd` auto-exports to `.beads/issues.jsonl` after writes (`export.auto: true`,
+  `export.git-add: false`), but that export is **throttled** (`export.interval`, ~60s) and writes only
+  the **default** record set — it omits `bd remember` memories and infra beads. So **before committing,
+  run `bd export --all -o .beads/issues.jsonl`** to guarantee the ledger is current and complete, then
+  commit it (via `/flow:sync` or git). Seed exports use `--all` for the same reason.
 - **Fresh clone / new machine** (`git clone` brings `.agents/` **and** `.beads/issues.jsonl`):
   ```bash
   # from the repo root, after installing bd:

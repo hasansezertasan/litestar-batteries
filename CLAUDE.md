@@ -35,8 +35,10 @@ Dolt remote.
   `bd init`, then `bd dolt remote remove origin 2>/dev/null || true` (enforce local-only — `bd init` may
   auto-add the git origin as a Dolt remote), then `bd config set export.auto true` and
   `bd config set export.path issues.jsonl` (re-apply auto-export; it is not carried in the JSONL), then
-  `bd import`. `bd` then auto-exports to `.beads/issues.jsonl` after writes; commit it (e.g. via
-  `/flow:sync`) so task history stays versioned in git.
+  `bd import`. Thereafter `bd` auto-exports to `.beads/issues.jsonl` after writes, but that export is
+  throttled and omits `bd remember` memories / infra beads — so **before committing run
+  `bd export --all -o .beads/issues.jsonl`** to guarantee a fresh, complete ledger, then commit it (e.g.
+  via `/flow:sync`) so task history stays versioned in git.
 - Never hand-edit task markers in spec files — run `/flow:sync` after Beads changes.
 
 ## Canonical Commands
