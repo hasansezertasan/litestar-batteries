@@ -96,6 +96,74 @@ wrapper's deadline.
 
 Change the mount path with `HealthConfig(path="/healthz")`.
 
+### Idempotency
+
+Deduplicate retried unsafe requests so a client timeout or network retry can't create a
+duplicate order/charge. Add `IdempotencyPlugin`; when a request on a configured method carries an
+`Idempotency-Key` header, the first response is stored and replayed for subsequent retries.
+
+```python
+from litestar import Litestar
+
+from litestar_batteries import IdempotencyConfig, IdempotencyPlugin
+
+app = Litestar(
+    route_handlers=[...],
+    plugins=[IdempotencyPlugin(IdempotencyConfig())],  # POST + PATCH by default
+)
+```
+
+A client sends the same key when retrying:
+
+```http
+POST /orders HTTP/1.1
+Idempotency-Key: 8f3b...c1
+```
+
+Behaviour on a configured method carrying the header:
+
+| Situation | Result |
+|-----------|--------|
+| new key | run the handler, store the response, return it |
+| same key + same request body | replay the stored response + `Idempotency-Replayed: true` (handler not re-run) |
+| same key + **different** body | `422 Unprocessable Entity` |
+| key still in flight | `409 Conflict` |
+| no header, or non-configured method | passed through untouched |
+| first response was `5xx` | not cached — a retry re-runs the handler |
+
+#### Backing store
+
+State lives in a [Litestar store](https://docs.litestar.dev/2/usage/stores.html) named
+`"idempotency"`. By default that's an in-memory store (per-process). Share it across processes by
+mapping the name to Redis — **no code change**:
+
+```python
+from litestar.stores.redis import RedisStore
+
+app = Litestar(
+    route_handlers=[...],
+    plugins=[IdempotencyPlugin()],
+    stores={"idempotency": RedisStore.with_client(url="redis://localhost:6379")},
+)
+```
+
+> **Concurrency caveat.** In-flight (`409`) detection is serialized per worker with a lock. The
+> Litestar `Store` interface has no atomic check-and-set, so across multiple processes the guard is
+> **best-effort** — it narrows, but does not eliminate, the window where two simultaneous first
+> requests could both start. For a hard guarantee, back it with a store offering atomic operations.
+
+#### Configuration
+
+`IdempotencyConfig` fields:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `header_name` | `str` | `"Idempotency-Key"` | Request header carrying the key (matched case-insensitively). |
+| `methods` | `Sequence[str]` | `("POST", "PATCH")` | Methods that participate. |
+| `store` | `str` | `"idempotency"` | Litestar store registry name. |
+| `ttl` | `int` | `86400` | Seconds a completed response stays replayable. |
+| `lock_ttl` | `int` | `60` | Seconds the in-flight marker survives (bounds a crashed request). |
+
 ## Development
 
 ```bash
