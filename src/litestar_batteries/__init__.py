@@ -9,6 +9,7 @@ from litestar_batteries.health import (
     HealthPlugin,
     HealthReport,
 )
+from litestar_batteries.idempotency import IdempotencyConfig, IdempotencyPlugin
 
 try:
     __version__ = version("litestar-batteries")
@@ -21,5 +22,7 @@ __all__ = [
     "HealthConfig",
     "HealthPlugin",
     "HealthReport",
+    "IdempotencyConfig",
+    "IdempotencyPlugin",
     "__version__",
 ]
