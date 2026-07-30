@@ -106,3 +106,7 @@ uv run ruff format --check .  # format check
 uv run mypy                 # type check (strict)
 uv run pyright              # type check (strict)
 ```
+
+## License
+
+[MIT](./LICENSE)
