@@ -23,10 +23,10 @@
 ## Gotchas
 
 - **Flow's pre-commit hook crashes on Python < 3.10:** the shipped `.git/hooks/pre-commit` uses `str | None` / `list[dict]` annotations evaluated at def time; under a system `python3` of 3.9 it raises `TypeError` and silently blocks the commit. Fix: add `from __future__ import annotations` at the top of the hook. The upstream plugin template still has the bug.
-- **No auto-sync from Beads → spec.md here:** bd uses a **dolt-embedded** backend (no `.beads/` dir), and the hook early-exits without one. `spec.md` markers are updated manually; **Beads (`bd`) is the source of truth**.
+- **No auto-sync from Beads → spec.md here:** `spec.md` markers are updated manually via `/flow:sync` (Flow's Beads→spec auto-sync is not relied upon in this repo). The committed `.beads/issues.jsonl` ledger — not the ignored `.beads/embeddeddolt` cache — is the **source of truth**.
 - **`uv run "cmd --flag"` fails:** pass args unquoted (`uv run cmd --flag`); a single quoted string is treated as one executable name.
 - **PyYAML reads workflow `on:` as boolean `True`** (YAML 1.1); GitHub's parser is fine. Don't "fix" it.
-- **Ignore policy is hybrid:** `.agents/` (docs/patterns/knowledge/archive) is committed to git; the Beads DB (`.beads/`) is git-ignored and syncs via a Dolt remote. Keep `CLAUDE.md` self-authoritative anyway so the repo builds/verifies without any Flow context.
+- **Ignore policy is hybrid:** `.agents/` (docs/patterns/knowledge/archive) is committed to git. Under `.beads/`, the binary embedded-Dolt store is git-ignored (local cache) but the `.beads/issues.jsonl` export **is** git-tracked (`.beads/*` + `!.beads/issues.jsonl`) and is the portable source of truth — no Dolt remote. Keep `CLAUDE.md` self-authoritative anyway so the repo builds/verifies without any Flow context.
 - **msgspec empty-literal defaults are per-instance-safe:** `checks: list[X] = []` on a `msgspec.Struct` does NOT share state (msgspec treats empty `[]`/`{}`/`set()` as an implicit factory). Do not "fix" it to `msgspec.field(default_factory=list)` — bare `list` trips pyright strict (`list[Unknown]`). (The plain-dataclass mutable-default rule does not apply to Structs.)
 
 ## Skill Associations

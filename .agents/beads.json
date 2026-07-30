@@ -1,6 +1,6 @@
 {
   "enabled": true,
-  "localOnly": false,
+  "localOnly": true,
   "sync": "manual",
   "epicPrefix": "flow",
   "autoCreateTasks": true,
@@ -8,17 +8,18 @@
   "compactOnArchive": false,
   "bdConfig": {
     "no-git-ops": true,
-    "export.auto": false,
+    "export.auto": true,
+    "export.path": "issues.jsonl",
     "export.git-add": false
   },
   "syncPolicy": {
     "flowSyncAfterMutation": true,
-    "autoExport": false,
+    "autoExport": true,
     "autoGitAdd": false,
-    "allowDoltPush": true
+    "allowDoltPush": false
   },
   "dolt": {
-    "push": "manual"
+    "push": "off"
   },
   "taskStatusMapping": {
     "pending": "[ ]",

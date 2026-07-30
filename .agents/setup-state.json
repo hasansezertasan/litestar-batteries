@@ -12,7 +12,7 @@
     "commit_cadence": "task",
     "task_summary_mode": "git-notes",
     "backend_mode": "bd",
-    "ignore_policy": "hybrid: .agents tracked in git, .beads local (Dolt-synced)",
+    "ignore_policy": "hybrid: .agents tracked in git; .beads binary Dolt store ignored, .beads/issues.jsonl export git-tracked (no remote)",
     "canonical_commands": {
       "setup": "uv sync",
       "lint": "uv run ruff check .",
