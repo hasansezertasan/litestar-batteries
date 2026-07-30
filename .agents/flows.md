@@ -4,6 +4,10 @@
 
 ## Active Flows
 
+_None. Run `/flow:flow-plan "<description>"` to start the next battery._
+
+## Completed Flows (awaiting archive)
+
 | Flow ID | Description | Beads Epic | Location |
 |---------|-------------|------------|----------|
 | health-timeout | Per-check readiness timeout (`HealthCheck.timeout` → 503 instead of hanging) | litestar-batteries-8lt | [./specs/health-timeout/](./specs/health-timeout/) |

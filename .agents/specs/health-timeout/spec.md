@@ -42,7 +42,7 @@ HealthConfig(checks=[
 
 ## Tasks
 
-### [ ] Task 1 — TDD: failing tests for per-check timeout (`litestar-batteries-8lt.1`)
+### [x] Task 1 — TDD: failing tests for per-check timeout (`litestar-batteries-8lt.1`) [65c0f83]
 
 Add to `tests/test_health.py` (write BEFORE impl → Red; `timeout=` kwarg does not exist yet):
 
@@ -53,7 +53,7 @@ Add to `tests/test_health.py` (write BEFORE impl → Red; `timeout=` kwarg does 
 
 - **Acceptance:** new tests fail before impl (Red); they reference `HealthCheck(..., timeout=...)`.
 
-### [ ] Task 2 — Add `HealthCheck.timeout` + wrap await in `asyncio.wait_for` (`litestar-batteries-8lt.2`) — depends on Task 1
+### [x] Task 2 — Add `HealthCheck.timeout` + wrap await in `asyncio.wait_for` (`litestar-batteries-8lt.2`) [65c0f83] — depends on Task 1
 
 `models.py` — add to the frozen `HealthCheck` dataclass:
 
@@ -88,7 +88,7 @@ for hc in checks:
 - `asyncio.TimeoutError` is an alias of builtin `TimeoutError` on 3.11+ and importable on 3.10 — catch it.
 - **Acceptance:** Task 1 tests pass (Green); mypy + pyright strict clean; `timeout=None` path unchanged.
 
-### [ ] Task 3 — Docstrings + full verify gate (`litestar-batteries-8lt.3`) — depends on Task 2
+### [x] Task 3 — Docstrings + full verify gate (`litestar-batteries-8lt.3`) [65c0f83] — depends on Task 2
 
 - Document the `timeout` field on `HealthCheck` (seconds; `None` = no timeout).
 - Adjust the "checks run sequentially" comment in `controller.py:39-40` if warranted.
@@ -105,7 +105,7 @@ for hc in checks:
 
 ## Definition of Done
 
-- [ ] All 3 tasks closed in Beads with commit references.
-- [ ] `GET /health/ready` returns `503` (not a hang) when a check exceeds its `timeout`.
-- [ ] `timeout=None` checks behave exactly as before.
-- [ ] Full gate green, coverage ≥ 80%.
+- [x] All 3 tasks closed in Beads with commit references. [65c0f83]
+- [x] `GET /health/ready` returns `503` (not a hang) when a check exceeds its `timeout`.
+- [x] `timeout=None` checks behave exactly as before.
+- [x] Full gate green, coverage ≥ 80% (10 passed, 100% coverage).

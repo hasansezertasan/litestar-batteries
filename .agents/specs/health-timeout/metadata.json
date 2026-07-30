@@ -1,7 +1,8 @@
 {
   "flow_id": "health-timeout",
   "beads_epic_id": "litestar-batteries-8lt",
-  "status": "active",
+  "status": "completed",
   "created_at": "2026-07-30T00:00:00Z",
-  "updated_at": "2026-07-30T00:00:00Z"
+  "updated_at": "2026-07-30T00:00:00Z",
+  "synced_at": "2026-07-30T00:00:00Z"
 }
