@@ -80,14 +80,14 @@ src/litestar_batteries/
 
 ## Tasks
 
-### [ ] Task 1 — models, config, plugin scaffold + exports (`litestar-batteries-va8.1`)
+### [x] Task 1 — models, config, plugin scaffold + exports (`litestar-batteries-va8.1`) [e79a9e8]
 
 - `models.py`: `IdempotencyConfig` dataclass (`header_name="Idempotency-Key"`, `methods=("POST","PATCH")`, `store="idempotency"`, `ttl=86400.0`, `lock_ttl=<small default>`); `_StoredResponse(msgspec.Struct)` with `state: Literal["processing","done"]`, `status: int`, `media_type: str | None`, `body: bytes`, `request_hash: str`.
 - `plugin.py`: `IdempotencyPlugin(InitPlugin)` scaffold (`__init__(config=None)`); `on_app_init` wired in T3/T4.
 - `__init__.py` exports; re-export from `litestar_batteries.__init__`.
 - **Acceptance:** imports cleanly; mypy/pyright strict pass; no behavior yet.
 
-### [ ] Task 2 — TDD failing tests (`litestar-batteries-va8.2`) — depends on Task 1
+### [x] Task 2 — TDD failing tests (`litestar-batteries-va8.2`) [cf3e7db] — depends on Task 1
 
 `tests/test_idempotency.py` (write BEFORE middleware → Red). Cover the behaviour table:
 passthrough (no key / `GET`); first request stores + returns; replay (same key+body) with marker header
@@ -96,7 +96,7 @@ concurrent in-flight (block the handler on an `asyncio.Event`, drive with `Async
 not cached (retry re-runs); custom `header_name`/`methods`; redis-swap smoke (map `stores={"idempotency": MemoryStore()}`).
 - **Acceptance:** tests fail before impl (Red).
 
-### [ ] Task 3 — implement the ASGI middleware (`litestar-batteries-va8.3`) — depends on Task 2
+### [x] Task 3 — implement the ASGI middleware (`litestar-batteries-va8.3`) [cf3e7db] — depends on Task 2
 
 `middleware.py` per "Grounded API facts": method/key gate → passthrough; buffer body + `sha256` hash +
 replay receive; store lookup (`done` → 422-on-mismatch / replay; `processing` → 409); else set sentinel
@@ -104,7 +104,7 @@ replay receive; store lookup (`done` → 422-on-mismatch / replay; `processing` 
 Document the best-effort-lock limitation in a comment.
 - **Acceptance:** all Task 2 tests pass (Green); mypy/pyright strict clean.
 
-### [ ] Task 4 — wire plugin, README docs, full gate (`litestar-batteries-va8.4`) — depends on Task 3
+### [x] Task 4 — wire plugin, README docs, full gate (`litestar-batteries-va8.4`) [a787106] — depends on Task 3
 
 - Verify the `ASGIMiddleware`-registration mechanism, wire it in `on_app_init`.
 - README battery section (usage, config table, redis swap, 409/422 semantics, best-effort caveat); docstrings.
@@ -113,7 +113,7 @@ Document the best-effort-lock limitation in a comment.
 
 ## Definition of Done
 
-- [ ] All 4 tasks closed in Beads with commit references.
-- [ ] Retried `POST`/`PATCH` with a repeated `Idempotency-Key` replays the first response; `409`/`422`/`5xx` behave per the table.
-- [ ] Redis backing works via `stores=` with no code change.
-- [ ] Full gate green, coverage ≥ 80%; README documents the battery incl. the best-effort-lock caveat.
+- [x] All 4 tasks closed in Beads with commit references. [a787106]
+- [x] Retried `POST`/`PATCH` with a repeated `Idempotency-Key` replays the first response; `409`/`422`/`5xx` behave per the table.
+- [x] Redis backing works via `stores=` with no code change.
+- [x] Full gate green, coverage 98% (22 tests); README documents the battery incl. the best-effort-lock caveat.

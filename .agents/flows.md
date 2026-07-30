@@ -4,6 +4,10 @@
 
 ## Active Flows
 
+_None. Run `/flow:flow-plan "<description>"` to start the next battery._
+
+## Completed Flows (awaiting archive)
+
 | Flow ID | Description | Beads Epic | Location |
 |---------|-------------|------------|----------|
 | idempotency-battery | Idempotency-Key battery: dedupe retried POST/PATCH (replay + 409 in-flight + 422 fingerprint) | litestar-batteries-va8 | [./specs/idempotency-battery/](./specs/idempotency-battery/) |
