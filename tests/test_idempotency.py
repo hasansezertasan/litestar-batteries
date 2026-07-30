@@ -1,0 +1,184 @@
+"""Tests for the idempotency battery."""
+
+from typing import Any, cast
+
+import msgspec
+import pytest
+from litestar import Litestar, Response, get, post
+from litestar.status_codes import (
+    HTTP_200_OK,
+    HTTP_201_CREATED,
+    HTTP_409_CONFLICT,
+    HTTP_422_UNPROCESSABLE_ENTITY,
+    HTTP_500_INTERNAL_SERVER_ERROR,
+)
+from litestar.stores.memory import MemoryStore
+from litestar.testing import AsyncTestClient, create_test_client
+
+from litestar_batteries import IdempotencyConfig, IdempotencyPlugin
+from litestar_batteries.idempotency.middleware import _buffer_request, store_key
+from litestar_batteries.idempotency.models import StoredResponse
+
+REPLAYED_HEADER = "Idempotency-Replayed"
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+def _counting_create() -> Any:
+    """A POST handler that counts invocations and echoes its body."""
+    calls = {"n": 0}
+
+    @post("/create")
+    async def create(data: dict[str, Any]) -> dict[str, Any]:
+        calls["n"] += 1
+        return {"n": calls["n"], "echo": data}
+
+    create.calls = calls  # type: ignore[attr-defined]
+    return create
+
+
+def test_no_key_passes_through() -> None:
+    handler = _counting_create()
+    with create_test_client(route_handlers=[handler], plugins=[IdempotencyPlugin()]) as client:
+        r1 = client.post("/create", json={"a": 1})
+        r2 = client.post("/create", json={"a": 1})
+        assert r1.status_code == r2.status_code == HTTP_201_CREATED
+        assert handler.calls["n"] == 2  # ran both times — no dedupe without a key
+
+
+def test_get_is_not_deduplicated() -> None:
+    calls = {"n": 0}
+
+    @get("/ping")
+    async def ping() -> dict[str, int]:
+        calls["n"] += 1
+        return {"n": calls["n"]}
+
+    with create_test_client(route_handlers=[ping], plugins=[IdempotencyPlugin()]) as client:
+        headers = {"Idempotency-Key": "k"}
+        client.get("/ping", headers=headers)
+        client.get("/ping", headers=headers)
+        assert calls["n"] == 2  # GET is not a configured method
+
+
+def test_repeated_key_replays_first_response() -> None:
+    handler = _counting_create()
+    with create_test_client(route_handlers=[handler], plugins=[IdempotencyPlugin()]) as client:
+        headers = {"Idempotency-Key": "k1"}
+        r1 = client.post("/create", headers=headers, json={"a": 1})
+        r2 = client.post("/create", headers=headers, json={"a": 1})
+        assert r1.status_code == r2.status_code == HTTP_201_CREATED  # replay preserves status
+        assert handler.calls["n"] == 1  # handler ran only once
+        assert r1.json() == r2.json()  # identical replayed body
+        assert REPLAYED_HEADER not in r1.headers
+        assert r2.headers.get(REPLAYED_HEADER) == "true"
+
+
+def test_same_key_different_body_conflicts() -> None:
+    handler = _counting_create()
+    with create_test_client(route_handlers=[handler], plugins=[IdempotencyPlugin()]) as client:
+        headers = {"Idempotency-Key": "k1"}
+        first = client.post("/create", headers=headers, json={"a": 1})
+        assert first.status_code == HTTP_201_CREATED
+        reused = client.post("/create", headers=headers, json={"a": 999})
+        assert reused.status_code == HTTP_422_UNPROCESSABLE_ENTITY
+        assert handler.calls["n"] == 1  # the mismatched retry did not run the handler
+
+
+def test_5xx_is_not_cached_and_retry_reruns() -> None:
+    calls = {"n": 0}
+
+    @post("/flaky")
+    async def flaky(data: dict[str, Any]) -> Response[dict[str, Any]]:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return Response({"error": "boom"}, status_code=HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"ok": True}, status_code=HTTP_200_OK)
+
+    with create_test_client(route_handlers=[flaky], plugins=[IdempotencyPlugin()]) as client:
+        headers = {"Idempotency-Key": "k1"}
+        first = client.post("/flaky", headers=headers, json={"a": 1})
+        assert first.status_code == HTTP_500_INTERNAL_SERVER_ERROR
+        second = client.post("/flaky", headers=headers, json={"a": 1})
+        assert second.status_code == HTTP_200_OK  # not replayed — re-ran
+        assert calls["n"] == 2
+
+
+def test_custom_header_and_methods() -> None:
+    calls = {"n": 0}
+
+    @post("/put-like")
+    async def handler(data: dict[str, Any]) -> dict[str, int]:
+        calls["n"] += 1
+        return {"n": calls["n"]}
+
+    config = IdempotencyConfig(header_name="X-Idem", methods=("POST",))
+    with create_test_client(
+        route_handlers=[handler], plugins=[IdempotencyPlugin(config)]
+    ) as client:
+        # default header is ignored now; the custom one is honored
+        client.post("/put-like", headers={"Idempotency-Key": "k"}, json={"a": 1})
+        client.post("/put-like", headers={"Idempotency-Key": "k"}, json={"a": 1})
+        assert calls["n"] == 2  # default header not recognized
+        client.post("/put-like", headers={"X-Idem": "k2"}, json={"a": 1})
+        client.post("/put-like", headers={"X-Idem": "k2"}, json={"a": 1})
+        assert calls["n"] == 3  # custom header deduped the second call
+
+
+def test_uses_configured_store() -> None:
+    handler = _counting_create()
+    store = MemoryStore()
+    with create_test_client(
+        route_handlers=[handler],
+        plugins=[IdempotencyPlugin()],
+        stores={"idempotency": store},
+    ) as client:
+        headers = {"Idempotency-Key": "k1"}
+        client.post("/create", headers=headers, json={"a": 1})
+        client.post("/create", headers=headers, json={"a": 1})
+        assert handler.calls["n"] == 1  # dedupe worked against the provided store
+
+
+@pytest.mark.anyio
+async def test_in_flight_key_returns_409() -> None:
+    # Deterministically exercise the in-flight branch: seed the exact record a
+    # concurrent, still-processing first request would leave, then fire a retry.
+    handler = _counting_create()
+    app = Litestar(route_handlers=[handler], plugins=[IdempotencyPlugin()])
+    async with AsyncTestClient(app=app) as client:
+        store = app.stores.get("idempotency")
+        sentinel = StoredResponse(state="processing", request_hash="")
+        await store.set(store_key("POST", "/create", "k1"), msgspec.msgpack.encode(sentinel))
+
+        resp = await client.post("/create", headers={"Idempotency-Key": "k1"}, json={"a": 1})
+        assert resp.status_code == HTTP_409_CONFLICT
+        assert handler.calls["n"] == 0  # the retry did not run the handler
+
+
+@pytest.mark.anyio
+async def test_buffer_request_reassembles_chunked_body() -> None:
+    chunks = [
+        {"type": "http.request", "body": b"ab", "more_body": True},
+        {"type": "http.request", "body": b"cd", "more_body": False},
+    ]
+    stream = iter(chunks)
+
+    async def receive() -> Any:
+        return next(stream)
+
+    body, replay = await _buffer_request(receive)
+    assert body == b"abcd"  # chunks reassembled for fingerprinting
+    assert cast("dict[str, Any]", await replay())["body"] == b"ab"  # replayed verbatim to the app
+    assert cast("dict[str, Any]", await replay())["body"] == b"cd"
+
+
+@pytest.mark.anyio
+async def test_buffer_request_stops_on_disconnect() -> None:
+    async def receive() -> Any:
+        return {"type": "http.disconnect"}
+
+    body, _replay = await _buffer_request(receive)
+    assert body == b""

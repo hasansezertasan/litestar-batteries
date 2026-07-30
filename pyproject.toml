@@ -44,11 +44,13 @@ typeCheckingMode = "strict"
 
 # Shipped code (src) stays fully strict. Tests exercise third-party helpers (e.g. Litestar's
 # create_test_client) whose broad signatures trip strict "unknown type" reporting, so silence
-# just that rule under tests/ — everything else remains strict.
+# just that rule under tests/ — everything else remains strict. Tests also white-box a few
+# private helpers (e.g. _buffer_request) by design, so reportPrivateUsage is relaxed there too.
 [[tool.pyright.executionEnvironments]]
 root = "tests"
 reportUnknownVariableType = false
 reportUnknownMemberType = false
+reportPrivateUsage = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
