@@ -19,16 +19,21 @@ This repo uses [Flow](https://github.com/cofin/flow) for planning. Its context i
 - `.agents/knowledge/` — synthesized reference (`architecture.md`, `conventions.md`)
 - `.agents/index.md` — full file resolution index
 
-Task state lives in **Beads** (`bd`). The Beads database (`.beads/`) is **not** in git — it syncs via a
-Dolt remote (`bd dolt pull`/`push`) — so a fresh clone has the docs but must pull Beads separately.
-This file remains self-sufficient for building and verifying regardless.
+Task state lives in **Beads** (`bd`). The binary embedded-Dolt store (`.beads/embeddeddolt`) is a
+**local cache** and is git-ignored; the git-tracked source of truth is the JSONL export
+(`.beads/issues.jsonl`), committed with the rest of `.agents/`. A fresh clone rebuilds the DB from it
+with `bd import`. There is **no external service / Dolt remote** — history lives in git. This file
+remains self-sufficient for building and verifying regardless.
 
 ## Task Memory
 
-Beads (`bd`, dolt embedded backend) is the source of truth for task state. The DB is not committed;
-it syncs across machines via a Dolt remote.
+Beads (`bd`, embedded Dolt engine) is the source of truth for task state. The binary Dolt store is a
+local cache (git-ignored); the committed `.beads/issues.jsonl` export is what travels in git — no
+external service or Dolt remote.
 
-- Run `bd prime` at session start. On a fresh clone, `bd bootstrap` / `bd dolt pull` restores history.
+- Run `bd prime` at session start. On a fresh clone, `bd init` then `bd import` rebuilds the local DB
+  from the committed `.beads/issues.jsonl`. `bd` auto-exports to that file after writes (`export.auto`);
+  commit it (e.g. via `/flow:sync`) so task history is versioned in git.
 - Never hand-edit task markers in spec files — run `/flow:sync` after Beads changes.
 
 ## Canonical Commands

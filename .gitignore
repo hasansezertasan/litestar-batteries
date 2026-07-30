@@ -224,5 +224,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Beads task database (synced via Dolt remote, not git)
-.beads/
+# Beads task database: the binary embedded-Dolt store is a local cache (ignored);
+# the JSONL export is the git-tracked source of truth (bd export -> bd import).
+.beads/*
+!.beads/issues.jsonl

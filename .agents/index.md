@@ -23,7 +23,7 @@
 | File | Purpose |
 |------|---------|
 | [flows.md](flows.md) | Registry of all flows and their status |
-| [beads.json](beads.json) | Beads backend configuration (Dolt-synced; DB git-ignored) |
+| [beads.json](beads.json) | Beads backend configuration (embedded Dolt; JSONL export git-tracked, binary store ignored) |
 
 ## Code Styleguides
 
