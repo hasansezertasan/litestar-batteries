@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from litestar import Controller, get
@@ -37,12 +38,20 @@ def build_health_controller(config: HealthConfig) -> type[Controller]:
         )
         async def readiness(self) -> Response[HealthReport]:
             # Checks run sequentially in registration order; a slow check delays the
-            # rest. Keep individual checks fast, or aggregate concurrently upstream.
+            # rest (bounded by its own ``timeout`` when set). Keep individual checks
+            # fast, or aggregate concurrently upstream.
             results: list[CheckResult] = []
             healthy = True
             for hc in checks:
                 try:
-                    await hc.check()
+                    if hc.timeout is not None:
+                        await asyncio.wait_for(hc.check(), hc.timeout)
+                    else:
+                        await hc.check()
+                except asyncio.TimeoutError:  # check exceeded its per-check timeout
+                    healthy = False
+                    timed_out = f"timed out after {hc.timeout}s"
+                    results.append(CheckResult(name=hc.name, status="error", error=timed_out))
                 except Exception as exc:  # readiness failure surfaced as a check error
                     healthy = False
                     results.append(CheckResult(name=hc.name, status="error", error=str(exc)))
