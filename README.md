@@ -32,8 +32,9 @@ from litestar_batteries import HealthCheck, HealthConfig, HealthPlugin
 
 
 async def db_ready() -> None:
+    # Probe your real dependency here, e.g. `await db.execute("SELECT 1")`.
     # Raise to signal "not ready"; return normally to signal "ready".
-    await database.execute("SELECT 1")
+    ...
 
 
 app = Litestar(
