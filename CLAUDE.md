@@ -20,20 +20,23 @@ This repo uses [Flow](https://github.com/cofin/flow) for planning. Its context i
 - `.agents/index.md` — full file resolution index
 
 Task state lives in **Beads** (`bd`). The binary embedded-Dolt store (`.beads/embeddeddolt`) is a
-**local cache** and is git-ignored; the git-tracked source of truth is the JSONL export
-(`.beads/issues.jsonl`), committed with the rest of `.agents/`. A fresh clone rebuilds the DB from it
-with `bd import`. There is **no external service / Dolt remote** — history lives in git. This file
-remains self-sufficient for building and verifying regardless.
+**local cache** and is git-ignored; the git-tracked **source of truth** is the JSONL export
+(`.beads/issues.jsonl`), committed with the rest of `.agents/`. A fresh clone rebuilds the local DB with
+`bd init` then `bd import` (see Task Memory below). There is **no external service / Dolt remote** —
+history lives in git. This file remains self-sufficient for building and verifying regardless.
 
 ## Task Memory
 
-Beads (`bd`, embedded Dolt engine) is the source of truth for task state. The binary Dolt store is a
-local cache (git-ignored); the committed `.beads/issues.jsonl` export is what travels in git — no
-external service or Dolt remote.
+The committed `.beads/issues.jsonl` ledger is the **source of truth** for task state; `bd`'s embedded
+Dolt store (`.beads/embeddeddolt`) is only a git-ignored local cache of it — no external service or
+Dolt remote.
 
-- Run `bd prime` at session start. On a fresh clone, `bd init` then `bd import` rebuilds the local DB
-  from the committed `.beads/issues.jsonl`. `bd` auto-exports to that file after writes (`export.auto`);
-  commit it (e.g. via `/flow:sync`) so task history is versioned in git.
+- Run `bd prime` at session start. On a fresh clone, restore the local DB from the committed ledger:
+  `bd init`, then `bd dolt remote remove origin 2>/dev/null || true` (enforce local-only — `bd init` may
+  auto-add the git origin as a Dolt remote), then `bd config set export.auto true` and
+  `bd config set export.path issues.jsonl` (re-apply auto-export; it is not carried in the JSONL), then
+  `bd import`. `bd` then auto-exports to `.beads/issues.jsonl` after writes; commit it (e.g. via
+  `/flow:sync`) so task history stays versioned in git.
 - Never hand-edit task markers in spec files — run `/flow:sync` after Beads changes.
 
 ## Canonical Commands

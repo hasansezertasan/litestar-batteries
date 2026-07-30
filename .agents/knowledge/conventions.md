@@ -59,9 +59,10 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyr
   git-ignored (local cache); the **`.beads/issues.jsonl` export is git-tracked** and is the portable
   source of truth. `.gitignore` uses `.beads/*` + `!.beads/issues.jsonl`. `CLAUDE.md` is still kept
   self-authoritative so the repo builds without any Flow context.
-- Beads (`bd`) uses the embedded Dolt engine; the DB lives at `<project>/.beads/embeddeddolt`. The Flow
-  auto-sync git hook is a no-op here (it keys off a `.beads/` dir next to `.agents/`, which this layout
-  doesn't have), so `spec.md` markers are maintained manually — **Beads is the source of truth**.
+- Beads (`bd`) uses the embedded Dolt engine; the DB lives at `<project>/.beads/embeddeddolt` (in this
+  Orca layout it resolves to the main checkout's `.beads/`). Flow's Beads→`spec.md` auto-sync is **not
+  relied upon** here: `spec.md` markers are updated manually via `/flow:sync`, and the committed
+  `.beads/issues.jsonl` ledger — not the ignored local Dolt store — is the source of truth.
 - **No remote:** task state is versioned in **git via the JSONL export**, not an external service (no
   DoltHub/Dolt remote); `bd dolt push` / `bd dolt pull` are not used (`.agents/beads.json` sets
   `localOnly: true`, `allowDoltPush: false`). `bd` auto-exports to `.beads/issues.jsonl` after writes
@@ -69,9 +70,15 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyr
 - **Fresh clone / new machine** (`git clone` brings `.agents/` **and** `.beads/issues.jsonl`):
   ```bash
   # from the repo root, after installing bd:
-  bd init                   # create an empty local embedded-Dolt DB (no --remote)
-  bd import                 # load issues from the tracked .beads/issues.jsonl
-  bd stats                  # verify the issue history imported
+  bd init                                            # create a local embedded-Dolt DB
+  bd dolt remote remove origin 2>/dev/null || true   # enforce local-only: bd init may auto-add the
+                                                     # git origin as a Dolt remote; drop it
+  bd config set export.auto true                     # re-apply export config (NOT carried in the JSONL,
+  bd config set export.path issues.jsonl             # which holds only issue records)
+  bd import                                          # load issues from the tracked .beads/issues.jsonl
+  bd stats                                           # verify the issue history imported
   ```
-  The binary Dolt store is regenerated locally; only the JSONL travels in git.
+  The binary Dolt store is regenerated locally; only the JSONL travels in git. The `bd config set`
+  lines mirror `.agents/beads.json` `bdConfig`; without them auto-export would be off and later
+  mutations would live only in the ignored Dolt store.
 - Commits follow Conventional Commits; branches Conventional Branch; PR titles Conventional PR.
