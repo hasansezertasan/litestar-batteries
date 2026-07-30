@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from litestar import Controller, get
@@ -12,7 +13,47 @@ from litestar.status_codes import HTTP_200_OK, HTTP_503_SERVICE_UNAVAILABLE
 from litestar_batteries.health.models import CheckResult, HealthReport
 
 if TYPE_CHECKING:
-    from litestar_batteries.health.models import HealthConfig
+    from litestar_batteries.health.models import HealthCheck, HealthConfig
+
+
+class _DeadlineExceeded(Exception):
+    """Internal marker: the readiness wrapper's own per-check timeout elapsed."""
+
+
+class _CheckFailed(Exception):
+    """Internal marker: the check raised its own exception; message is preserved."""
+
+
+async def _guarded(hc: HealthCheck) -> None:
+    """Await ``hc.check()``, re-typing a ``TimeoutError`` the check raises itself.
+
+    ``asyncio.wait_for`` raises ``asyncio.TimeoutError`` for *its* deadline, so a
+    check that raises ``asyncio.TimeoutError`` on its own (e.g. an upstream client
+    timeout) would be indistinguishable from the deadline. Re-raise the check's own
+    timeout as ``_CheckFailed`` — preserving its message — so an
+    ``asyncio.TimeoutError`` escaping ``wait_for`` uniquely means the deadline.
+    """
+    try:
+        await hc.check()
+    except asyncio.TimeoutError as exc:
+        raise _CheckFailed(str(exc)) from exc
+
+
+async def _run_check(hc: HealthCheck) -> None:
+    """Await ``hc.check()``, bounded by ``hc.timeout`` when set.
+
+    Raises ``_DeadlineExceeded`` only when the wrapper's own deadline elapses;
+    ``asyncio.wait_for`` cancels the check in that case (and propagates cancellation
+    when the surrounding request is cancelled, so the check is never orphaned). Any
+    failure raised by the check propagates unchanged, keeping its real message.
+    """
+    if hc.timeout is None:
+        await hc.check()
+        return
+    try:
+        await asyncio.wait_for(_guarded(hc), hc.timeout)
+    except asyncio.TimeoutError:
+        raise _DeadlineExceeded from None
 
 
 def build_health_controller(config: HealthConfig) -> type[Controller]:
@@ -37,12 +78,17 @@ def build_health_controller(config: HealthConfig) -> type[Controller]:
         )
         async def readiness(self) -> Response[HealthReport]:
             # Checks run sequentially in registration order; a slow check delays the
-            # rest. Keep individual checks fast, or aggregate concurrently upstream.
+            # rest (bounded by its own ``timeout`` when set). Keep individual checks
+            # fast, or aggregate concurrently upstream.
             results: list[CheckResult] = []
             healthy = True
             for hc in checks:
                 try:
-                    await hc.check()
+                    await _run_check(hc)
+                except _DeadlineExceeded:  # the wrapper's own per-check deadline
+                    healthy = False
+                    timed_out = f"timed out after {hc.timeout}s"
+                    results.append(CheckResult(name=hc.name, status="error", error=timed_out))
                 except Exception as exc:  # readiness failure surfaced as a check error
                     healthy = False
                     results.append(CheckResult(name=hc.name, status="error", error=str(exc)))

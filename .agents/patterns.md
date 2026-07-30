@@ -27,6 +27,20 @@
 - **`uv run "cmd --flag"` fails:** pass args unquoted (`uv run cmd --flag`); a single quoted string is treated as one executable name.
 - **PyYAML reads workflow `on:` as boolean `True`** (YAML 1.1); GitHub's parser is fine. Don't "fix" it.
 - **Ignore policy is hybrid:** `.agents/` (docs/patterns/knowledge/archive) is committed to git. Under `.beads/`, the binary embedded-Dolt store is git-ignored (local cache) but the `.beads/issues.jsonl` export **is** git-tracked (`.beads/*` + `!.beads/issues.jsonl`) and is the portable source of truth — no Dolt remote. Keep `CLAUDE.md` self-authoritative anyway so the repo builds/verifies without any Flow context.
+- **Python 3.10 is in the CI matrix → no 3.11+ stdlib APIs in `src`:** typers pin `pythonVersion = "3.10"`
+  and tests run on 3.10, but neither necessarily flags a 3.11-only *runtime* call. Prefer the
+  3.10-compatible form — e.g. the `asyncio.timeout()` context manager is 3.11+, so bound awaits with
+  3.10-safe primitives instead. `asyncio.TimeoutError` is importable on 3.10 (a distinct class there)
+  and is an alias of builtin `TimeoutError` on 3.11+. (from: health-timeout)
+- **Bounding an await ≠ distinguishing your deadline from the awaited code's own timeout:** `asyncio.wait_for`
+  raises `asyncio.TimeoutError` for *its* deadline, but a coroutine that raises `asyncio.TimeoutError`
+  itself (an upstream client timeout) surfaces as the *same type* — so `except asyncio.TimeoutError`
+  around `wait_for` conflates them and discards the real error. Disambiguate by **re-typing inside a
+  guard wrapper**: `await` the coroutine in a helper that catches its own `asyncio.TimeoutError` and
+  re-raises it as a private type (message preserved); then a bare `asyncio.TimeoutError` escaping
+  `wait_for` uniquely means the deadline. Prefer this over hand-rolling a task + `asyncio.wait` +
+  cancel: `wait_for` already cancels the inner coroutine on both its deadline and caller cancellation,
+  so the task is never orphaned. (from: health-timeout, PR #8 review)
 - **msgspec empty-literal defaults are per-instance-safe:** `checks: list[X] = []` on a `msgspec.Struct` does NOT share state (msgspec treats empty `[]`/`{}`/`set()` as an implicit factory). Do not "fix" it to `msgspec.field(default_factory=list)` — bare `list` trips pyright strict (`list[Unknown]`). (The plain-dataclass mutable-default rule does not apply to Structs.)
 
 ## Skill Associations

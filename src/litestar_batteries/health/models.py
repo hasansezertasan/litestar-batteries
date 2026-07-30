@@ -32,10 +32,16 @@ class HealthReport(msgspec.Struct):
 
 @dataclass(frozen=True)
 class HealthCheck:
-    """A named async readiness check that raises on failure."""
+    """A named async readiness check that raises on failure.
+
+    ``timeout`` bounds a single run of ``check`` (in seconds). When it is ``None``
+    (the default) the check awaits without a time limit; when set, exceeding it
+    surfaces as a check error (readiness responds ``503``).
+    """
 
     name: str
     check: Callable[[], Awaitable[None]]
+    timeout: float | None = None
 
 
 @dataclass
