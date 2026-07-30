@@ -55,4 +55,9 @@ Every battery is a **Litestar `InitPlugin`**, established by the health battery:
   if all pass, `503` if any raised. `except Exception` converts a failure to a per-check error —
   `BaseException` (incl. `CancelledError`) still propagates. Sequential execution is a documented
   contract; batteries needing concurrency should aggregate upstream.
+- **Per-check timeout:** `HealthCheck.timeout: float | None = None` (opt-in; `None` = unbounded, the
+  default, so existing configs are unchanged). When set, the check runs under `asyncio.wait_for`; a
+  timeout surfaces as a `CheckResult` error (`"timed out after {t}s"`) → `503`, so a stalled dependency
+  can no longer hang the endpoint. The `except asyncio.TimeoutError` handler precedes the generic
+  `except Exception` (order matters — the broad catch would otherwise mask it with an empty message).
 - Public types: `HealthPlugin`, `HealthConfig`, `HealthCheck`, `HealthReport`, `CheckResult`.
