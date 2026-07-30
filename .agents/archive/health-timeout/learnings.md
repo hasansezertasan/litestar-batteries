@@ -30,9 +30,13 @@
 - **Codex + CodeRabbit (correctness):** the first-cut `asyncio.wait_for` + `except asyncio.TimeoutError`
   conflated the wrapper deadline with a `TimeoutError` raised by the check itself (same exception type),
   mislabeling the check's own error — worst case `"timed out after Nones"` on the `timeout=None` path.
-  Fix: run the check as a task, `await asyncio.wait({task}, timeout=...)`, detect the deadline by
-  *mechanism* (still pending → cancel → raise private `_DeadlineExceeded`), and `task.result()` to
-  re-raise the check's own exception unchanged. Added two regression tests (bounded + unbounded).
+  Added two regression tests (bounded + unbounded).
+- **Exhaustive-review follow-up (same PR):** an interim fix used a task + `asyncio.wait({task}, timeout=...)`
+  with mechanism-based deadline detection, but `asyncio.wait` does *not* cancel the task when the awaiting
+  coroutine is cancelled → a client disconnect orphaned the check. Final design keeps `asyncio.wait_for`
+  (correct cancellation) and disambiguates with a `_guarded` wrapper that re-types the check's own
+  `asyncio.TimeoutError` as private `_CheckFailed`; a bare `asyncio.TimeoutError` out of `wait_for` then
+  means only the deadline. Simpler (no manual cancel/suppress) and fully covered by the existing 12 tests.
 - **CodeRabbit (test strength):** `test_readiness_timeout_none_is_unbounded` used the instant `_ok`, which
   couldn't catch an accidental finite default — switched it to a slow check (`_slow`, 0.2s sleep).
 - **CodeRabbit (docs lint):** `float | None` inside the spec.md Decisions table broke MD056; escaped the pipe.

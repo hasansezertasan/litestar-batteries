@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 from typing import TYPE_CHECKING
 
 from litestar import Controller, get
@@ -18,29 +17,43 @@ if TYPE_CHECKING:
 
 
 class _DeadlineExceeded(Exception):
-    """Internal marker: the readiness wrapper's per-check timeout elapsed."""
+    """Internal marker: the readiness wrapper's own per-check timeout elapsed."""
+
+
+class _CheckFailed(Exception):
+    """Internal marker: the check raised its own exception; message is preserved."""
+
+
+async def _guarded(hc: HealthCheck) -> None:
+    """Await ``hc.check()``, re-typing a ``TimeoutError`` the check raises itself.
+
+    ``asyncio.wait_for`` raises ``asyncio.TimeoutError`` for *its* deadline, so a
+    check that raises ``asyncio.TimeoutError`` on its own (e.g. an upstream client
+    timeout) would be indistinguishable from the deadline. Re-raise the check's own
+    timeout as ``_CheckFailed`` — preserving its message — so an
+    ``asyncio.TimeoutError`` escaping ``wait_for`` uniquely means the deadline.
+    """
+    try:
+        await hc.check()
+    except asyncio.TimeoutError as exc:
+        raise _CheckFailed(str(exc)) from exc
 
 
 async def _run_check(hc: HealthCheck) -> None:
     """Await ``hc.check()``, bounded by ``hc.timeout`` when set.
 
-    Raises ``_DeadlineExceeded`` only when the wrapper's own deadline elapses. An
-    exception raised by the check itself — including an ``asyncio.TimeoutError`` from
-    its own client — propagates unchanged so it keeps its real message. The two are
-    told apart by *mechanism* (a task still pending past the deadline), because
-    ``asyncio.wait_for`` conflates them by exception type.
+    Raises ``_DeadlineExceeded`` only when the wrapper's own deadline elapses;
+    ``asyncio.wait_for`` cancels the check in that case (and propagates cancellation
+    when the surrounding request is cancelled, so the check is never orphaned). Any
+    failure raised by the check propagates unchanged, keeping its real message.
     """
     if hc.timeout is None:
         await hc.check()
         return
-    task = asyncio.ensure_future(hc.check())
-    done, _pending = await asyncio.wait({task}, timeout=hc.timeout)
-    if task not in done:
-        task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await task
-        raise _DeadlineExceeded
-    task.result()  # re-raise the check's own exception, if it failed
+    try:
+        await asyncio.wait_for(_guarded(hc), hc.timeout)
+    except asyncio.TimeoutError:
+        raise _DeadlineExceeded from None
 
 
 def build_health_controller(config: HealthConfig) -> type[Controller]:

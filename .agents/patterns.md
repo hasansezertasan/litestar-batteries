@@ -35,10 +35,12 @@
 - **Bounding an await ≠ distinguishing your deadline from the awaited code's own timeout:** `asyncio.wait_for`
   raises `asyncio.TimeoutError` for *its* deadline, but a coroutine that raises `asyncio.TimeoutError`
   itself (an upstream client timeout) surfaces as the *same type* — so `except asyncio.TimeoutError`
-  around `wait_for` conflates them and discards the real error. When both can occur, detect the deadline
-  by **mechanism**: run the coroutine as a task, `await asyncio.wait({task}, timeout=...)`, treat "still
-  pending" as your timeout (cancel it, raise a private sentinel), and `task.result()` to re-raise the
-  coroutine's own exception unchanged. (from: health-timeout, PR #8 review)
+  around `wait_for` conflates them and discards the real error. Disambiguate by **re-typing inside a
+  guard wrapper**: `await` the coroutine in a helper that catches its own `asyncio.TimeoutError` and
+  re-raises it as a private type (message preserved); then a bare `asyncio.TimeoutError` escaping
+  `wait_for` uniquely means the deadline. Prefer this over hand-rolling a task + `asyncio.wait` +
+  cancel: `wait_for` already cancels the inner coroutine on both its deadline and caller cancellation,
+  so the task is never orphaned. (from: health-timeout, PR #8 review)
 - **msgspec empty-literal defaults are per-instance-safe:** `checks: list[X] = []` on a `msgspec.Struct` does NOT share state (msgspec treats empty `[]`/`{}`/`set()` as an implicit factory). Do not "fix" it to `msgspec.field(default_factory=list)` — bare `list` trips pyright strict (`list[Unknown]`). (The plain-dataclass mutable-default rule does not apply to Structs.)
 
 ## Skill Associations

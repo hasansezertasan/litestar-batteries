@@ -104,10 +104,12 @@ for hc in checks:
 > **Post-review correction (PR #8, `litestar-batteries-8lt.4`).** The originally-shipped `asyncio.wait_for`
 > approach (Task 2 snippet above) had a defect: `wait_for` raises `asyncio.TimeoutError` for its deadline,
 > but a check raising its *own* `asyncio.TimeoutError` surfaces as the same type, so `except asyncio.TimeoutError`
-> mislabeled it as the wrapper deadline (`"timed out after Nones"` on the `timeout=None` path). Fixed by
-> running the check as a task under `asyncio.wait({task}, timeout=...)` and detecting the deadline by
-> **mechanism** (task still pending → cancel → raise a private `_DeadlineExceeded`); `task.result()`
-> re-raises the check's own exception unchanged. See `controller.py` and `patterns.md`.
+> mislabeled it as the wrapper deadline (`"timed out after Nones"` on the `timeout=None` path). Final fix keeps
+> `asyncio.wait_for` (so caller cancellation still cancels the check — no orphaned task) and disambiguates via a
+> `_guarded` wrapper that re-types the check's *own* `asyncio.TimeoutError` as a private `_CheckFailed` (message
+> preserved); a bare `asyncio.TimeoutError` out of `wait_for` then means only the deadline (`_DeadlineExceeded`).
+> An interim task-based `asyncio.wait` variant was rejected in review because it orphaned the check on caller
+> cancellation. See `controller.py` and `patterns.md`.
 
 ## Definition of Done
 
