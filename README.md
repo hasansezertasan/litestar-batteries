@@ -129,7 +129,11 @@ Behaviour on a configured method carrying the header:
 | same key + **different** body | `422 Unprocessable Entity` |
 | key still in flight | `409 Conflict` |
 | no header, or non-configured method | passed through untouched |
-| first response was `5xx` | not cached — a retry re-runs the handler |
+| response is not `2xx`/`4xx` (a redirect or `5xx`) | not cached — a retry re-runs the handler |
+
+Only `2xx` and `4xx` responses are cached: they're final and fully replayable from the stored
+status + body + content-type. Redirects are skipped (the `Location` header isn't carried), and `5xx`
+must stay retryable.
 
 #### Backing store
 
@@ -151,6 +155,11 @@ app = Litestar(
 > Litestar `Store` interface has no atomic check-and-set, so across multiple processes the guard is
 > **best-effort** — it narrows, but does not eliminate, the window where two simultaneous first
 > requests could both start. For a hard guarantee, back it with a store offering atomic operations.
+>
+> **`lock_ttl` must exceed your slowest handler.** The in-flight marker expires after `lock_ttl`
+> seconds (so a crashed request can't wedge a key forever). If a handler runs longer than that, the
+> marker expires mid-flight and a concurrent retry will see no record and re-run — raise `lock_ttl`
+> above your worst-case handler duration.
 
 #### Configuration
 
@@ -162,7 +171,8 @@ app = Litestar(
 | `methods` | `Sequence[str]` | `("POST", "PATCH")` | Methods that participate. |
 | `store` | `str` | `"idempotency"` | Litestar store registry name. |
 | `ttl` | `int` | `86400` | Seconds a completed response stays replayable. |
-| `lock_ttl` | `int` | `60` | Seconds the in-flight marker survives (bounds a crashed request). |
+| `lock_ttl` | `int` | `60` | Seconds the in-flight marker survives; **must exceed your slowest handler** (see caveat). |
+| `max_body_bytes` | `int \| None` | `1048576` | Responses larger than this are served but not cached (bounds store growth). `None` disables. |
 
 ## Development
 

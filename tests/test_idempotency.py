@@ -16,7 +16,7 @@ from litestar.stores.memory import MemoryStore
 from litestar.testing import AsyncTestClient, create_test_client
 
 from litestar_batteries import IdempotencyConfig, IdempotencyPlugin
-from litestar_batteries.idempotency.middleware import _buffer_request, store_key
+from litestar_batteries.idempotency.middleware import _buffer_request, store_key  # pyright: ignore
 from litestar_batteries.idempotency.models import StoredResponse
 
 REPLAYED_HEADER = "Idempotency-Replayed"
@@ -107,6 +107,60 @@ def test_5xx_is_not_cached_and_retry_reruns() -> None:
         assert calls["n"] == 2
 
 
+def test_redirect_is_not_cached() -> None:
+    # 3xx is not replayable (Location header isn't carried), so it must not be cached.
+    calls = {"n": 0}
+
+    @post("/go", status_code=302)
+    async def go(data: dict[str, Any]) -> Response[None]:
+        calls["n"] += 1
+        return Response(None, status_code=302, headers={"Location": "/there"})
+
+    with create_test_client(route_handlers=[go], plugins=[IdempotencyPlugin()]) as client:
+        headers = {"Idempotency-Key": "k1"}
+        client.post("/go", headers=headers, json={"a": 1}, follow_redirects=False)
+        client.post("/go", headers=headers, json={"a": 1}, follow_redirects=False)
+        assert calls["n"] == 2  # re-ran; the redirect was not cached
+
+
+def test_oversized_response_is_not_cached() -> None:
+    calls = {"n": 0}
+
+    @post("/big")
+    async def big(data: dict[str, Any]) -> dict[str, str]:
+        calls["n"] += 1
+        return {"blob": "x" * 5_000}
+
+    config = IdempotencyConfig(max_body_bytes=1_000)  # smaller than the response
+    with create_test_client(route_handlers=[big], plugins=[IdempotencyPlugin(config)]) as client:
+        headers = {"Idempotency-Key": "k1"}
+        client.post("/big", headers=headers, json={"a": 1})
+        client.post("/big", headers=headers, json={"a": 1})
+        assert calls["n"] == 2  # too large to cache → re-ran
+
+
+def test_same_key_isolated_across_endpoints() -> None:
+    # A ":" in the path must not let one endpoint's key collide with another's.
+    calls = {"a": 0, "b": 0}
+
+    @post("/orders:v2")
+    async def a(data: dict[str, Any]) -> dict[str, str]:
+        calls["a"] += 1
+        return {"which": "a"}
+
+    @post("/orders")
+    async def b(data: dict[str, Any]) -> dict[str, str]:
+        calls["b"] += 1
+        return {"which": "b"}
+
+    with create_test_client(route_handlers=[a, b], plugins=[IdempotencyPlugin()]) as client:
+        ra = client.post("/orders:v2", headers={"Idempotency-Key": "x"}, json={})
+        rb = client.post("/orders", headers={"Idempotency-Key": "v2:x"}, json={})
+        assert ra.json() == {"which": "a"}  # not cross-replayed
+        assert rb.json() == {"which": "b"}
+        assert calls == {"a": 1, "b": 1}
+
+
 def test_custom_header_and_methods() -> None:
     calls = {"n": 0}
 
@@ -169,16 +223,18 @@ async def test_buffer_request_reassembles_chunked_body() -> None:
     async def receive() -> Any:
         return next(stream)
 
-    body, replay = await _buffer_request(receive)
+    body, replay, disconnected = await _buffer_request(receive)
     assert body == b"abcd"  # chunks reassembled for fingerprinting
+    assert not disconnected
     assert cast("dict[str, Any]", await replay())["body"] == b"ab"  # replayed verbatim to the app
     assert cast("dict[str, Any]", await replay())["body"] == b"cd"
 
 
 @pytest.mark.anyio
-async def test_buffer_request_stops_on_disconnect() -> None:
+async def test_buffer_request_flags_disconnect() -> None:
     async def receive() -> Any:
         return {"type": "http.disconnect"}
 
-    body, _replay = await _buffer_request(receive)
+    body, _replay, disconnected = await _buffer_request(receive)
     assert body == b""
+    assert disconnected

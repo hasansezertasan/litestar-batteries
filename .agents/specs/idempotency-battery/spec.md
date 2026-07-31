@@ -66,6 +66,17 @@ window: two truly-simultaneous first requests can both miss the sentinel and bot
 lock therefore **narrows** the duplicate window but is **best-effort**, not a distributed lock. Callers
 needing a hard guarantee should back it with a store offering atomic ops. State this plainly.
 
+**Post-review hardening (PR #12 review):**
+- Cache **only 2xx/4xx** (not `<500`): a 3xx redirect isn't replayable (`_replay` drops `Location`), and
+  a `status==0` from a disconnected/never-responding handler must not be stored. Others → delete sentinel.
+- **`store_key` is length-delimited** (`{method}:{len(path)}:{path}:{key}`) so a `:` in a path or key
+  cannot collide two distinct `(path, key)` pairs.
+- **`max_body_bytes`** (default 1 MiB): responses larger than the cap are served but not cached, bounding
+  store growth from unique-key floods. Unlimited unique keys are inherent; `ttl` + Redis bound them in prod.
+- **`lock_ttl` must exceed the slowest handler** — else the in-flight marker expires mid-flight and a
+  concurrent retry re-runs. Documented; renewable/distributed leases are out of v1 scope.
+- Client **disconnect** during body buffering → bypass persistence entirely.
+
 ## Target layout
 
 ```

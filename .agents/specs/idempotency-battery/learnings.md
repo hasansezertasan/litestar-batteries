@@ -28,3 +28,19 @@
 
 - README battery section (behaviour table, Redis swap via `stores=`, best-effort caveat, config table).
 - Full gate green: ruff, format, mypy strict, pyright strict (0), pytest **22 passed, 98% coverage**.
+
+## PR #12 review follow-up
+
+Triaged 7 threads (Codex + CodeRabbit); 6 valid, 1 skipped:
+- **Cache only 2xx/4xx** (was `<500`): 3xx redirects aren't replayable (`_replay` drops `Location`) and a
+  disconnected/never-responding handler's `status==0` must not be stored. (Codex + CodeRabbit disconnect thread.)
+- **`store_key` length-delimited** to kill the `:`-injection collision (`/orders:v2`+`x` vs `/orders`+`v2:x`). (Codex)
+- **`max_body_bytes`** (default 1 MiB) caps cached response size → bounds MemoryStore growth. (CodeRabbit security)
+- **`lock_ttl` caveat** documented: must exceed slowest handler or a long-running request's lease expires and a
+  retry re-runs; renewable leases deferred (out of v1 scope). (CodeRabbit critical → documented trade-off.)
+- **Disconnect bypass**: `_buffer_request` returns a disconnect flag; middleware skips persistence.
+- **Pyright `reportPrivateUsage`**: narrowed to an inline `# pyright: ignore` at the import site instead of
+  relaxing the rule for all of `tests/`. (CodeRabbit)
+- **Skipped**: "future-dated timestamps" — today *is* 2026-07-31 (clock advanced mid-session); CodeRabbit's
+  context was stale, timestamps are correct.
+- Gate after fixes: **25 passed, 98% coverage**.

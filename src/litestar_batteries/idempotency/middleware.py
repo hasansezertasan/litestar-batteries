@@ -14,11 +14,7 @@ import msgspec
 from litestar import Request
 from litestar.enums import ScopeType
 from litestar.middleware import ASGIMiddleware
-from litestar.status_codes import (
-    HTTP_409_CONFLICT,
-    HTTP_422_UNPROCESSABLE_ENTITY,
-    HTTP_500_INTERNAL_SERVER_ERROR,
-)
+from litestar.status_codes import HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_ENTITY
 
 from litestar_batteries.idempotency.models import StoredResponse
 
@@ -32,12 +28,17 @@ if TYPE_CHECKING:
 
 def store_key(method: str, path: str, key: str) -> str:
     """Namespace the idempotency key by method and path so the same key on
-    different endpoints does not collide."""
-    return f"{method}:{path}:{key}"
+    different endpoints cannot collide.
+
+    The path is length-delimited so that a ``:`` inside a path or key cannot make
+    two distinct ``(path, key)`` pairs map to the same string.
+    """
+    return f"{method}:{len(path)}:{path}:{key}"
 
 
-async def _buffer_request(receive: Receive) -> tuple[bytes, Receive]:
-    """Drain the request body from ``receive`` and return it plus a replay receive.
+async def _buffer_request(receive: Receive) -> tuple[bytes, Receive, bool]:
+    """Drain the request body from ``receive``; return it, a replay receive, and
+    whether the client disconnected before the body was fully received.
 
     ASGI bodies can only be consumed once, so the middleware buffers the messages
     to fingerprint the body, then hands the downstream app a ``receive`` that
@@ -45,6 +46,7 @@ async def _buffer_request(receive: Receive) -> tuple[bytes, Receive]:
     """
     messages: list[ReceiveMessage] = []
     body = bytearray()
+    disconnected = False
     while True:
         message = await receive()
         messages.append(message)
@@ -53,6 +55,7 @@ async def _buffer_request(receive: Receive) -> tuple[bytes, Receive]:
             if not message.get("more_body", False):
                 break
         else:  # http.disconnect
+            disconnected = True
             break
 
     iterator = iter(messages)
@@ -63,7 +66,7 @@ async def _buffer_request(receive: Receive) -> tuple[bytes, Receive]:
         except StopIteration:  # pragma: no cover - defensive; body is fully buffered above
             return cast("ReceiveMessage", {"type": "http.request", "body": b"", "more_body": False})
 
-    return bytes(body), replay
+    return bytes(body), replay, disconnected
 
 
 async def _send_error(send: Send, status: int, detail: str) -> None:
@@ -123,7 +126,11 @@ class IdempotencyMiddleware(ASGIMiddleware):
             await next_app(scope, receive, send)
             return
 
-        body, buffered_receive = await _buffer_request(receive)
+        body, buffered_receive, disconnected = await _buffer_request(receive)
+        if disconnected:
+            # Client went away before we had a full request; don't persist anything.
+            await next_app(scope, buffered_receive, send)
+            return
         request_hash = hashlib.sha256(body).hexdigest()
         store = request.app.stores.get(self.config.store)
         record_key = store_key(request.method, request.url.path, key)
@@ -178,9 +185,14 @@ class IdempotencyMiddleware(ASGIMiddleware):
             await store.delete(record_key)  # this guards only ASGI-level failures below the app
             raise
 
-        if status >= HTTP_500_INTERNAL_SERVER_ERROR:
-            await store.delete(record_key)  # server error: let a retry re-run
-        else:
+        # Cache only final, faithfully-replayable responses: 2xx and 4xx. A 3xx
+        # redirect is skipped because _replay does not carry its Location header;
+        # 5xx (and a status of 0 from a handler that never responded) must be
+        # retryable. Oversized bodies are served but not stored, to bound memory.
+        cacheable = 200 <= status < 300 or 400 <= status < 500
+        max_bytes = self.config.max_body_bytes
+        too_large = max_bytes is not None and len(captured_body) > max_bytes
+        if cacheable and not too_large:
             done = StoredResponse(
                 state="done",
                 request_hash=request_hash,
@@ -189,3 +201,5 @@ class IdempotencyMiddleware(ASGIMiddleware):
                 body=bytes(captured_body),
             )
             await store.set(record_key, msgspec.msgpack.encode(done), expires_in=self.config.ttl)
+        else:
+            await store.delete(record_key)  # not cached → let a retry re-run
