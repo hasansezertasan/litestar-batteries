@@ -14,26 +14,32 @@ import msgspec
 from litestar import Request
 from litestar.enums import ScopeType
 from litestar.middleware import ASGIMiddleware
-from litestar.status_codes import HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_ENTITY
+from litestar.status_codes import (
+    HTTP_400_BAD_REQUEST,
+    HTTP_409_CONFLICT,
+    HTTP_422_UNPROCESSABLE_ENTITY,
+)
 
 from litestar_batteries.idempotency.models import StoredResponse
 
 if TYPE_CHECKING:
     from typing import Any
 
+    from litestar.stores.base import Store
     from litestar.types import ASGIApp, Message, Receive, ReceiveMessage, Scope, Send
 
     from litestar_batteries.idempotency.models import IdempotencyConfig
 
+_PROBLEM_BASE = "urn:litestar-batteries:idempotency"
 
-def store_key(method: str, path: str, key: str) -> str:
-    """Namespace the idempotency key by method and path so the same key on
-    different endpoints cannot collide.
 
-    The path is length-delimited so that a ``:`` inside a path or key cannot make
-    two distinct ``(path, key)`` pairs map to the same string.
+def store_key(method: str, path: str, key: str, scope: str = "") -> str:
+    """Namespace the idempotency key by scope, method, and path.
+
+    Every component is length-delimited so a ``:`` inside a scope, path, or key
+    cannot make two distinct tuples collide onto the same record.
     """
-    return f"{method}:{len(path)}:{path}:{key}"
+    return f"{method}:{len(scope)}:{scope}:{len(path)}:{path}:{key}"
 
 
 async def _buffer_request(receive: Receive) -> tuple[bytes, Receive, bool]:
@@ -69,14 +75,17 @@ async def _buffer_request(receive: Receive) -> tuple[bytes, Receive, bool]:
     return bytes(body), replay, disconnected
 
 
-async def _send_error(send: Send, status: int, detail: str) -> None:
-    body = msgspec.json.encode({"detail": detail})
+async def _problem(send: Send, status: int, slug: str, title: str, detail: str) -> None:
+    """Send an RFC 9457 ``application/problem+json`` error response."""
+    body = msgspec.json.encode(
+        {"type": f"{_PROBLEM_BASE}:{slug}", "title": title, "status": status, "detail": detail}
+    )
     await send(
         {
             "type": "http.response.start",
             "status": status,
             "headers": [
-                (b"content-type", b"application/json"),
+                (b"content-type", b"application/problem+json"),
                 (b"content-length", str(len(body)).encode()),
             ],
         }
@@ -89,8 +98,9 @@ async def _replay(send: Send, record: StoredResponse) -> None:
         (b"idempotency-replayed", b"true"),
         (b"content-length", str(len(record.body)).encode()),
     ]
-    if record.media_type is not None:
-        headers.append((b"content-type", record.media_type.encode()))
+    headers.extend(
+        (name.encode("latin-1"), value.encode("latin-1")) for name, value in record.headers
+    )
     await send({"type": "http.response.start", "status": record.status, "headers": headers})
     await send({"type": "http.response.body", "body": record.body, "more_body": False})
 
@@ -100,9 +110,10 @@ class IdempotencyMiddleware(ASGIMiddleware):
 
     On a configured method carrying the idempotency header: a repeated key replays
     the first response (``422`` if the same key arrives with a different body,
-    ``409`` while the first request is still in flight). Responses with a ``5xx``
-    status are not cached, so a failed request can be retried. Requests without the
-    header, or on non-configured methods, pass through untouched.
+    ``409`` while the first request is still in flight). Non-2xx/4xx responses
+    (redirects, ``5xx``) are not cached, so a failed request can be retried.
+    Requests without the header (unless ``require_key``), or on non-configured
+    methods, pass through untouched. Errors are RFC 9457 ``problem+json``.
     """
 
     scopes = (ScopeType.HTTP,)
@@ -111,19 +122,40 @@ class IdempotencyMiddleware(ASGIMiddleware):
         self.config = config
         self._methods = frozenset(method.upper() for method in config.methods)
         # Serializes the get -> set-sentinel window so two concurrent first requests
-        # in the same worker cannot both start. Cross-process dedupe still relies on
-        # the store; the Store ABC has no atomic check-and-set, so in-flight
-        # detection across workers is best-effort, not a distributed lock.
+        # in the same worker cannot both start. For a real cross-process guard, set
+        # config.claim (the Store ABC has no atomic check-and-set); otherwise
+        # in-flight detection across workers is best-effort, not a distributed lock.
         self._lock = asyncio.Lock()
 
     async def handle(self, scope: Scope, receive: Receive, send: Send, next_app: ASGIApp) -> None:
+        config = self.config
         request: Request[Any, Any, Any] = Request(scope)
         if request.method not in self._methods:
             await next_app(scope, receive, send)
             return
-        key = request.headers.get(self.config.header_name)
+
+        key = request.headers.get(config.header_name)
         if not key:
+            if config.require_key:
+                await _problem(
+                    send,
+                    HTTP_400_BAD_REQUEST,
+                    "missing-key",
+                    "Missing Idempotency-Key",
+                    f"This endpoint requires an {config.header_name} header.",
+                )
+                return
             await next_app(scope, receive, send)
+            return
+        if len(key) > config.max_key_length or not (key.isascii() and key.isprintable()):
+            await _problem(
+                send,
+                HTTP_400_BAD_REQUEST,
+                "invalid-key",
+                "Invalid Idempotency-Key",
+                f"The {config.header_name} must be printable ASCII of at most "
+                f"{config.max_key_length} characters.",
+            )
             return
 
         body, buffered_receive, disconnected = await _buffer_request(receive)
@@ -132,74 +164,116 @@ class IdempotencyMiddleware(ASGIMiddleware):
             await next_app(scope, buffered_receive, send)
             return
         request_hash = hashlib.sha256(body).hexdigest()
-        store = request.app.stores.get(self.config.store)
-        record_key = store_key(request.method, request.url.path, key)
+        scope_value = config.scope(request) if config.scope is not None else ""
+        record_key = store_key(request.method, request.url.path, key, scope_value)
 
-        async with self._lock:
-            existing_raw = await store.get(record_key)
+        claim = config.claim
+        store: Store | None = None if claim is not None else request.app.stores.get(config.store)
+        sentinel = msgspec.msgpack.encode(
+            StoredResponse(state="processing", request_hash=request_hash)
+        )
+
+        if claim is not None:
+            existing_raw = await claim.claim(record_key, sentinel, ttl=config.lock_ttl)
             record = (
                 None
                 if existing_raw is None
                 else msgspec.msgpack.decode(existing_raw, type=StoredResponse)
             )
-            if record is None:
-                sentinel = StoredResponse(state="processing", request_hash=request_hash)
-                await store.set(
-                    record_key, msgspec.msgpack.encode(sentinel), expires_in=self.config.lock_ttl
+        else:
+            assert store is not None
+            async with self._lock:
+                existing_raw = await store.get(record_key)
+                record = (
+                    None
+                    if existing_raw is None
+                    else msgspec.msgpack.decode(existing_raw, type=StoredResponse)
                 )
+                if record is None:
+                    await store.set(record_key, sentinel, expires_in=config.lock_ttl)
+
+        async def persist(value: bytes) -> None:
+            if claim is not None:
+                await claim.set(record_key, value, ttl=config.ttl)
+            else:
+                assert store is not None
+                await store.set(record_key, value, expires_in=config.ttl)
+
+        async def drop() -> None:
+            if claim is not None:
+                await claim.delete(record_key)
+            else:
+                assert store is not None
+                await store.delete(record_key)
 
         if record is not None:
             if record.state == "processing":
-                await _send_error(
-                    send, HTTP_409_CONFLICT, "A request with this Idempotency-Key is in progress."
+                await _problem(
+                    send,
+                    HTTP_409_CONFLICT,
+                    "in-progress",
+                    "Request in progress",
+                    "A request with this Idempotency-Key is already in progress.",
                 )
             elif record.request_hash != request_hash:
-                await _send_error(
+                await _problem(
                     send,
                     HTTP_422_UNPROCESSABLE_ENTITY,
-                    "Idempotency-Key reused with a different request body.",
+                    "payload-mismatch",
+                    "Idempotency-Key reused",
+                    "This Idempotency-Key was already used with a different request body.",
                 )
             else:
                 await _replay(send, record)
             return
 
+        allow = config.replay_headers
+        max_bytes = config.max_body_bytes
         status = 0
-        media_type: str | None = None
+        captured_headers: list[tuple[str, str]] = []
         captured_body = bytearray()
+        too_large = False
 
         async def send_wrapper(message: Message) -> None:
-            nonlocal status, media_type
+            nonlocal status, captured_headers, too_large
             if message["type"] == "http.response.start":
                 status = message["status"]
-                for name, value in message["headers"]:
-                    if name.lower() == b"content-type":
-                        media_type = value.decode("latin-1")
-                        break
+                captured_headers = [
+                    (name.decode("latin-1").lower(), value.decode("latin-1"))
+                    for name, value in message["headers"]
+                    if name.decode("latin-1").lower() in allow
+                ]
             elif message["type"] == "http.response.body":
-                captured_body.extend(message["body"])
+                if not too_large:
+                    captured_body.extend(message["body"])
+                    if max_bytes is not None and len(captured_body) > max_bytes:
+                        # Stop buffering (and drop what we have) so a large or
+                        # streaming response can't grow memory without bound.
+                        too_large = True
+                        captured_body.clear()
             await send(message)
 
         try:
             await next_app(scope, buffered_receive, send_wrapper)
         except Exception:  # pragma: no cover - Litestar renders handler errors to a 5xx response;
-            await store.delete(record_key)  # this guards only ASGI-level failures below the app
+            await drop()  # this guards only ASGI-level failures below the app
             raise
 
-        # Cache only final, faithfully-replayable responses: 2xx and 4xx. A 3xx
-        # redirect is skipped because _replay does not carry its Location header;
-        # 5xx (and a status of 0 from a handler that never responded) must be
-        # retryable. Oversized bodies are served but not stored, to bound memory.
+        # Cache only final, faithfully-replayable responses: 2xx and 4xx. Redirects
+        # (3xx), 5xx, a never-sent response (status 0), and oversized/streaming
+        # bodies are not cached, so a retry re-runs.
         cacheable = 200 <= status < 300 or 400 <= status < 500
-        max_bytes = self.config.max_body_bytes
-        too_large = max_bytes is not None and len(captured_body) > max_bytes
         if cacheable and not too_large:
-            done = StoredResponse(
-                state="done",
-                request_hash=request_hash,
-                status=status,
-                media_type=media_type,
-                body=bytes(captured_body),
+            await persist(
+                msgspec.msgpack.encode(
+                    StoredResponse(
+                        state="done",
+                        request_hash=request_hash,
+                        status=status,
+                        headers=captured_headers,
+                        body=bytes(captured_body),
+                    )
+                )
             )
-            await store.set(record_key, msgspec.msgpack.encode(done), expires_in=self.config.ttl)
         else:
-            await store.delete(record_key)  # not cached → let a retry re-run
+            await drop()  # not cached → let a retry re-run

@@ -9,7 +9,12 @@ from litestar_batteries.health import (
     HealthPlugin,
     HealthReport,
 )
-from litestar_batteries.idempotency import IdempotencyConfig, IdempotencyPlugin
+from litestar_batteries.idempotency import (
+    AtomicClaim,
+    IdempotencyConfig,
+    IdempotencyPlugin,
+    RedisAtomicClaim,
+)
 
 try:
     __version__ = version("litestar-batteries")
@@ -17,6 +22,7 @@ except PackageNotFoundError:  # pragma: no cover
     __version__ = "0.0.0"
 
 __all__ = [
+    "AtomicClaim",
     "CheckResult",
     "HealthCheck",
     "HealthConfig",
@@ -24,5 +30,6 @@ __all__ = [
     "HealthReport",
     "IdempotencyConfig",
     "IdempotencyPlugin",
+    "RedisAtomicClaim",
     "__version__",
 ]

@@ -76,3 +76,14 @@ Compared our battery against the authoritative spec and 8 libraries to find patt
 4. **Streaming / oversized short-circuit** — stop buffering past `max_body_bytes`; bypass streaming with an `Idempotency-Replay-Unavailable` marker.
 5. **Polish:** RFC 9457 problem+json errors; optional `require_key` → 400; key length/charset validation.
 6. **Defer:** HMAC fingerprint, lease renewal/fencing tokens, metrics protocol, per-route `no-store` opt-out.
+
+## Hardening implemented (epic `litestar-batteries-9ke`)
+
+Folded in #1–#5 from the backlog above (on the PR #12 branch):
+- **Scope isolation** (`scope: Callable[[Request], str] | None`) folded into a length-delimited `store_key` — fixes the cross-tenant replay leak.
+- **Atomic cross-process claim** as an opt-in `AtomicClaim` protocol (new `claims.py`) with a duck-typed `RedisAtomicClaim` (`SET NX`); default keeps the per-worker `asyncio.Lock`. The `Store` ABC's lack of atomic CAS is why this is a separate hook rather than a Store method.
+- **Response header allow-list** (`replay_headers`, default Content-\*/Location/ETag/Cache-Control…; denies Set-Cookie/Authorization) — `StoredResponse.media_type` replaced by `headers: list[tuple[str,str]]`.
+- **Streaming/oversized short-circuit** — `send_wrapper` stops buffering and drops the partial body once past `max_body_bytes` (memory bound).
+- **RFC 9457 problem+json** errors (`urn:litestar-batteries:idempotency:*`) + optional `require_key`→400 + key length/charset validation→400.
+- Deferred (unchanged): HMAC fingerprint, lease renewal/fencing, metrics, `no-store` opt-out.
+- Gate: **32 passed, 98% coverage**, ruff/mypy/pyright clean.

@@ -151,15 +151,46 @@ app = Litestar(
 )
 ```
 
-> **Concurrency caveat.** In-flight (`409`) detection is serialized per worker with a lock. The
-> Litestar `Store` interface has no atomic check-and-set, so across multiple processes the guard is
-> **best-effort** — it narrows, but does not eliminate, the window where two simultaneous first
-> requests could both start. For a hard guarantee, back it with a store offering atomic operations.
->
 > **`lock_ttl` must exceed your slowest handler.** The in-flight marker expires after `lock_ttl`
 > seconds (so a crashed request can't wedge a key forever). If a handler runs longer than that, the
 > marker expires mid-flight and a concurrent retry will see no record and re-run — raise `lock_ttl`
 > above your worst-case handler duration.
+
+##### Cross-process concurrency
+
+By default, in-flight (`409`) detection is serialized per worker with a lock. Litestar's `Store` has
+no atomic check-and-set, so **across multiple processes the default guard is best-effort** — it
+narrows, but does not eliminate, the window where two simultaneous first requests both start.
+
+For a real cross-process guarantee, pass a `claim` — an `AtomicClaim` whose reservation is atomic.
+`RedisAtomicClaim` is provided (duck-typed against `redis.asyncio.Redis`, no hard dependency):
+
+```python
+from redis.asyncio import Redis
+
+from litestar_batteries import IdempotencyConfig, IdempotencyPlugin, RedisAtomicClaim
+
+claim = RedisAtomicClaim(Redis.from_url("redis://localhost:6379"))
+plugin = IdempotencyPlugin(IdempotencyConfig(claim=claim))
+```
+
+When `claim` is set the middleware routes all record I/O through it (via `SET NX`), so the `store`
+setting is unused.
+
+#### Multi-tenant isolation
+
+The store key is namespaced by method + path + key. For a multi-tenant API set `scope` so the same
+key from two different callers never collides (which would replay one caller's response to another):
+
+```python
+IdempotencyConfig(scope=lambda request: request.headers.get("X-Tenant-Id", ""))
+```
+
+#### Errors
+
+`409` (in-flight), `422` (key reused with a different body), and `400` (missing key when
+`require_key=True`, or an over-long/non-ASCII key) are returned as RFC 9457
+`application/problem+json` with a `type` of `urn:litestar-batteries:idempotency:<slug>`.
 
 #### Configuration
 
@@ -169,10 +200,19 @@ app = Litestar(
 |-------|------|---------|-------------|
 | `header_name` | `str` | `"Idempotency-Key"` | Request header carrying the key (matched case-insensitively). |
 | `methods` | `Sequence[str]` | `("POST", "PATCH")` | Methods that participate. |
-| `store` | `str` | `"idempotency"` | Litestar store registry name. |
+| `store` | `str` | `"idempotency"` | Litestar store registry name (ignored when `claim` is set). |
 | `ttl` | `int` | `86400` | Seconds a completed response stays replayable. |
 | `lock_ttl` | `int` | `60` | Seconds the in-flight marker survives; **must exceed your slowest handler** (see caveat). |
-| `max_body_bytes` | `int \| None` | `1048576` | Responses larger than this are served but not cached (bounds store growth). `None` disables. |
+| `max_body_bytes` | `int \| None` | `1048576` | Responses larger than this are served but not cached; buffering short-circuits at the cap. `None` disables. |
+| `scope` | `Callable[[Request], str] \| None` | `None` | Per-caller key isolation (e.g. tenant id); see above. |
+| `require_key` | `bool` | `False` | Reject a configured-method request with no key → `400`. |
+| `max_key_length` | `int` | `255` | Reject keys longer than this → `400` (also bounds key-cardinality abuse). |
+| `replay_headers` | `frozenset[str]` | see below | Response headers stored & replayed. |
+| `claim` | `AtomicClaim \| None` | `None` | Atomic cross-process reservation backend (e.g. `RedisAtomicClaim`). |
+
+`replay_headers` defaults to `content-type`, `content-language`, `content-encoding`, `cache-control`,
+`etag`, `expires`, `last-modified`, `location` — volatile/sensitive headers (`set-cookie`,
+`authorization`, hop-by-hop) are intentionally excluded from replays.
 
 ## Development
 

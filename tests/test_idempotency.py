@@ -8,6 +8,7 @@ from litestar import Litestar, Response, get, post
 from litestar.status_codes import (
     HTTP_200_OK,
     HTTP_201_CREATED,
+    HTTP_400_BAD_REQUEST,
     HTTP_409_CONFLICT,
     HTTP_422_UNPROCESSABLE_ENTITY,
     HTTP_500_INTERNAL_SERVER_ERROR,
@@ -15,9 +16,57 @@ from litestar.status_codes import (
 from litestar.stores.memory import MemoryStore
 from litestar.testing import AsyncTestClient, create_test_client
 
-from litestar_batteries import IdempotencyConfig, IdempotencyPlugin
+from litestar_batteries import IdempotencyConfig, IdempotencyPlugin, RedisAtomicClaim
 from litestar_batteries.idempotency.middleware import _buffer_request, store_key  # pyright: ignore
 from litestar_batteries.idempotency.models import StoredResponse
+
+PROBLEM_JSON = "application/problem+json"
+
+
+class _DictClaim:
+    """In-memory AtomicClaim double for exercising the claim code path."""
+
+    def __init__(self) -> None:
+        self._data: dict[str, bytes] = {}
+
+    async def claim(self, key: str, value: bytes, *, ttl: int) -> bytes | None:
+        if key in self._data:
+            return self._data[key]
+        self._data[key] = value
+        return None
+
+    async def set(self, key: str, value: bytes, *, ttl: int) -> None:
+        self._data[key] = value
+
+    async def delete(self, key: str) -> None:
+        self._data.pop(key, None)
+
+
+class _FakeRedis:
+    """Minimal redis.asyncio.Redis stand-in for RedisAtomicClaim."""
+
+    def __init__(self) -> None:
+        self.store: dict[str, bytes] = {}
+
+    async def set(
+        self, name: str, value: bytes, *, nx: bool = False, ex: int | None = None
+    ) -> bool | None:
+        if nx and name in self.store:
+            return None
+        self.store[name] = value
+        return True
+
+    async def get(self, name: str) -> bytes | None:
+        return self.store.get(name)
+
+    async def delete(self, *names: str) -> int:
+        removed = 0
+        for name in names:
+            if name in self.store:
+                del self.store[name]
+                removed += 1
+        return removed
+
 
 REPLAYED_HEADER = "Idempotency-Replayed"
 
@@ -238,3 +287,93 @@ async def test_buffer_request_flags_disconnect() -> None:
     body, _replay, disconnected = await _buffer_request(receive)
     assert body == b""
     assert disconnected
+
+
+def test_scope_isolates_same_key_across_callers() -> None:
+    handler = _counting_create()
+    config = IdempotencyConfig(scope=lambda r: r.headers.get("X-User", "anon"))
+    with create_test_client(
+        route_handlers=[handler], plugins=[IdempotencyPlugin(config)]
+    ) as client:
+        key = {"Idempotency-Key": "k"}
+        client.post("/create", headers={**key, "X-User": "alice"}, json={"a": 1})
+        client.post("/create", headers={**key, "X-User": "bob"}, json={"a": 1})
+        assert handler.calls["n"] == 2  # same key, different scope -> not cross-replayed
+        client.post("/create", headers={**key, "X-User": "alice"}, json={"a": 1})
+        assert handler.calls["n"] == 2  # alice's repeat -> replayed
+
+
+def test_require_key_rejects_missing_key() -> None:
+    handler = _counting_create()
+    config = IdempotencyConfig(require_key=True)
+    with create_test_client(
+        route_handlers=[handler], plugins=[IdempotencyPlugin(config)]
+    ) as client:
+        resp = client.post("/create", json={"a": 1})
+        assert resp.status_code == HTTP_400_BAD_REQUEST
+        assert resp.headers["content-type"].startswith(PROBLEM_JSON)
+        assert resp.json()["type"].endswith("missing-key")
+        assert handler.calls["n"] == 0
+
+
+def test_invalid_key_is_rejected() -> None:
+    handler = _counting_create()
+    with create_test_client(route_handlers=[handler], plugins=[IdempotencyPlugin()]) as client:
+        resp = client.post("/create", headers={"Idempotency-Key": "x" * 300}, json={"a": 1})
+        assert resp.status_code == HTTP_400_BAD_REQUEST
+        assert resp.json()["type"].endswith("invalid-key")
+        assert handler.calls["n"] == 0
+
+
+def test_error_responses_are_problem_json() -> None:
+    handler = _counting_create()
+    with create_test_client(route_handlers=[handler], plugins=[IdempotencyPlugin()]) as client:
+        headers = {"Idempotency-Key": "k1"}
+        client.post("/create", headers=headers, json={"a": 1})
+        mismatch = client.post("/create", headers=headers, json={"a": 2})
+        assert mismatch.status_code == HTTP_422_UNPROCESSABLE_ENTITY
+        assert mismatch.headers["content-type"].startswith(PROBLEM_JSON)
+        body = mismatch.json()
+        assert body["type"].endswith("payload-mismatch")
+        assert body["status"] == HTTP_422_UNPROCESSABLE_ENTITY
+
+
+def test_replays_allowlisted_headers_only() -> None:
+    @post("/make")
+    async def make(data: dict[str, Any]) -> Response[dict[str, bool]]:
+        return Response({"ok": True}, headers={"ETag": '"abc"', "Set-Cookie": "sid=1"})
+
+    with create_test_client(route_handlers=[make], plugins=[IdempotencyPlugin()]) as client:
+        headers = {"Idempotency-Key": "k1"}
+        client.post("/make", headers=headers, json={"a": 1})
+        replay = client.post("/make", headers=headers, json={"a": 1})
+        assert replay.headers.get(REPLAYED_HEADER) == "true"
+        assert replay.headers.get("ETag") == '"abc"'  # allow-listed → replayed
+        assert "set-cookie" not in replay.headers  # denied → not replayed
+
+
+def test_dedupe_via_atomic_claim_backend() -> None:
+    handler = _counting_create()
+    config = IdempotencyConfig(claim=_DictClaim())
+    with create_test_client(
+        route_handlers=[handler], plugins=[IdempotencyPlugin(config)]
+    ) as client:
+        headers = {"Idempotency-Key": "k1"}
+        client.post("/create", headers=headers, json={"a": 1})
+        replay = client.post("/create", headers=headers, json={"a": 1})
+        assert handler.calls["n"] == 1  # deduped through the claim backend
+        assert replay.headers.get(REPLAYED_HEADER) == "true"
+        mismatch = client.post("/create", headers=headers, json={"a": 2})
+        assert mismatch.status_code == HTTP_422_UNPROCESSABLE_ENTITY
+
+
+@pytest.mark.anyio
+async def test_redis_atomic_claim() -> None:
+    redis = _FakeRedis()
+    claim = RedisAtomicClaim(redis, prefix="idem:")
+    assert await claim.claim("k", b"first", ttl=10) is None  # won the reservation
+    assert await claim.claim("k", b"second", ttl=10) == b"first"  # lost → incumbent bytes
+    await claim.set("k", b"done", ttl=10)
+    assert redis.store["idem:k"] == b"done"
+    await claim.delete("k")
+    assert "idem:k" not in redis.store
