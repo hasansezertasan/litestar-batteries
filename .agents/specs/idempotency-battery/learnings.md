@@ -44,3 +44,35 @@ Triaged 7 threads (Codex + CodeRabbit); 6 valid, 1 skipped:
 - **Skipped**: "future-dated timestamps" — today *is* 2026-07-31 (clock advanced mid-session); CodeRabbit's
   context was stale, timestamps are correct.
 - Gate after fixes: **25 passed, 98% coverage**.
+
+## Prior-art comparison (surveyed 2026-08-06)
+
+Compared our battery against the authoritative spec and 8 libraries to find patterns to adopt.
+
+**Authoritative sources**
+- IETF draft — *The Idempotency-Key HTTP Header Field*, `draft-ietf-httpapi-idempotency-key-header-07` (Oct 2025): <https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-idempotency-key-header-07>. Normative: first request → normal; same key + same body → replay; same key + **different** body → **422**; concurrent/in-flight → **409**; missing required key → **400**. Key = Structured-Field quoted string, ≤255, UUIDv4 recommended; errors as RFC 9457 problem+json; no standard "replayed" header.
+- Stripe idempotency: <https://docs.stripe.com/api/idempotent_requests> (per-account, all POST, 24h TTL, stores status+body incl. errors, same-key-different-params → error).
+
+**Libraries reviewed**
+| Lib | Link | Shape | Fingerprint→mismatch | In-flight | Notable |
+|-----|------|-------|----------------------|-----------|---------|
+| snok/asgi-idempotency-header | <https://github.com/snok/asgi-idempotency-header> | ASGI mw (Starlette) | ❌ none | `SADD` → 409 | no lock TTL (stranded on crash); drops headers; caches any status |
+| mohit (fork) | <https://github.com/mohit-eparchi/asgi-idempotency-header> | ASGI mw | ❌ none | set → 409 | fork adds `method:path:key` namespacing, `redis.asyncio` |
+| idemptx | <https://github.com/pypy-riley/idemptx> | FastAPI decorator | ✅ but hashes **all headers** (false 409s) | `SET NX EX` + wait-poll | sync/async backend polymorphism; single TTL for lock+cache |
+| relier | <https://github.com/getrelier/relier> | Celery decorator (not HTTP) | key = arg-hash | atomic Lua claim, **prefix-tagged sentinel**, compare-and-delete release | `inflight_ttl > timeout + buffer` enforced at startup; fencing tokens |
+| **idemkit** | <https://github.com/idemkit/idemkit> | **formal RFC-2119 spec** + impl | ✅ **422** (fingerprint ≠ key) | subscribe+wait → **423**; `claim_token` fencing, `renew()` lease | single-record state machine; header allow/deny; length-prefixed SHA-256; RFC 9457 `urn:` errors; 5xx never cached |
+| carvalho/fastapi-idempotency | <https://github.com/carvalhocaio/fastapi-idempotency> | in-handler demo | ❌ none | ❌ none (TOCTOU race) | teaching demo; unbounded dict |
+| **ronango/fastapi-idempotency** | <https://github.com/ronango/fastapi-idempotency> | raw-ASGI mw | ✅ **422**, HMAC length-prefixed | atomic Lua `acquire` (4-way outcome) → **409** | two-phase TTL, `413` size cap, streaming detect, header denylist, metrics protocol, `SECURITY.md` |
+| yoyowallet/django-idempotency-key | <https://github.com/yoyowallet/django-idempotency-key> | Django mw + decorators | ❌ body baked into key | lock → **423** | secure-by-default; fail-loud on mis-ordering; Authorization in hash (tenant scope); **no record TTL**; replay overrides status to 409 |
+
+**Cross-language:** idempot-js (Node, IETF-07 + RFC 9457, 409/422) <https://roderick.dk/posts/2026-04-06-announcing-idempot-js/>; Go idempotency-middleware (`SET NX` → 409) <https://github.com/furkandeveloper/idempotency-middleware>; Rails Idempo (atomic Lua, ≤4MB, `no-store` opt-out, 30s default TTL) <https://github.com/julik/idempo>; Spring idempotent-starter (5xx releases the key) <https://foojay.io/today/idempotent-spring-boot-starter/>.
+
+**Where our battery already leads (IETF-correct where most libs err):** `409`/`422` split, body-fingerprint → 422 (snok/mohit/django/carvalho all miss this), cache only 2xx/4xx & never 5xx, length-delimited store key, `max_body_bytes`, marker header, two-phase TTL. On par with the two best (idemkit, ronango) minus the items below.
+
+**Ranked improvement backlog** (also in the [[idempotency-prior-art]] memory):
+1. **Tenant/scope isolation** (security, low effort) — key is `method+path+key` only, so two users with the same key on the same endpoint collide/replay each other. Add a configurable `scope` callable. (django/ronango/idemkit all scope.)
+2. **Atomic cross-process claim** — our per-worker `asyncio.Lock` is best-effort across workers; the field uses atomic `SET NX`/Lua. Litestar's `Store` ABC has no atomic CAS → opt-in Redis path or keep documenting best-effort.
+3. **Response header allow-list** on replay (Content-\*, Location, ETag, Cache-Control; deny Set-Cookie/Authorization) → also enables safe 3xx replay.
+4. **Streaming / oversized short-circuit** — stop buffering past `max_body_bytes`; bypass streaming with an `Idempotency-Replay-Unavailable` marker.
+5. **Polish:** RFC 9457 problem+json errors; optional `require_key` → 400; key length/charset validation.
+6. **Defer:** HMAC fingerprint, lease renewal/fencing tokens, metrics protocol, per-route `no-store` opt-out.
