@@ -41,8 +41,8 @@ Triaged 7 threads (Codex + CodeRabbit); 6 valid, 1 skipped:
 - **Disconnect bypass**: `_buffer_request` returns a disconnect flag; middleware skips persistence.
 - **Pyright `reportPrivateUsage`**: narrowed to an inline `# pyright: ignore` at the import site instead of
   relaxing the rule for all of `tests/`. (CodeRabbit)
-- **Skipped**: "future-dated timestamps" — today *is* 2026-07-31 (clock advanced mid-session); CodeRabbit's
-  context was stale, timestamps are correct.
+- **Skipped**: "future-dated timestamps" — the work ran on 2026-07-31, so the timestamps were correct;
+  CodeRabbit's context was stale.
 - Gate after fixes: **25 passed, 98% coverage**.
 
 ## Prior-art comparison (surveyed 2026-08-06)
@@ -54,6 +54,7 @@ Compared our battery against the authoritative spec and 8 libraries to find patt
 - Stripe idempotency: <https://docs.stripe.com/api/idempotent_requests> (per-account, all POST, 24h TTL, stores status+body incl. errors, same-key-different-params → error).
 
 **Libraries reviewed**
+
 | Lib | Link | Shape | Fingerprint→mismatch | In-flight | Notable |
 |-----|------|-------|----------------------|-----------|---------|
 | snok/asgi-idempotency-header | <https://github.com/snok/asgi-idempotency-header> | ASGI mw (Starlette) | ❌ none | `SADD` → 409 | no lock TTL (stranded on crash); drops headers; caches any status |
