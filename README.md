@@ -96,6 +96,124 @@ wrapper's deadline.
 
 Change the mount path with `HealthConfig(path="/healthz")`.
 
+### Idempotency
+
+Deduplicate retried unsafe requests so a client timeout or network retry can't create a
+duplicate order/charge. Add `IdempotencyPlugin`; when a request on a configured method carries an
+`Idempotency-Key` header, the first response is stored and replayed for subsequent retries.
+
+```python
+from litestar import Litestar
+
+from litestar_batteries import IdempotencyConfig, IdempotencyPlugin
+
+app = Litestar(
+    route_handlers=[...],
+    plugins=[IdempotencyPlugin(IdempotencyConfig())],  # POST + PATCH by default
+)
+```
+
+A client sends the same key when retrying:
+
+```http
+POST /orders HTTP/1.1
+Idempotency-Key: 8f3b...c1
+```
+
+Behaviour on a configured method carrying the header:
+
+| Situation | Result |
+|-----------|--------|
+| new key | run the handler, store the response, return it |
+| same key + same request body | replay the stored response + `Idempotency-Replayed: true` (handler not re-run) |
+| same key + **different** body | `422 Unprocessable Entity` |
+| key still in flight | `409 Conflict` |
+| no header, or non-configured method | passed through untouched |
+| response is not `2xx`/`4xx` (a redirect or `5xx`) | not cached — a retry re-runs the handler |
+
+Only `2xx` and `4xx` responses are cached: they're final and fully replayable from the stored
+status + body + content-type. Redirects are skipped (the `Location` header isn't carried), and `5xx`
+must stay retryable.
+
+#### Backing store
+
+State lives in a [Litestar store](https://docs.litestar.dev/2/usage/stores.html) named
+`"idempotency"`. By default that's an in-memory store (per-process). Share it across processes by
+mapping the name to Redis — **no code change**:
+
+```python
+from litestar.stores.redis import RedisStore
+
+app = Litestar(
+    route_handlers=[...],
+    plugins=[IdempotencyPlugin()],
+    stores={"idempotency": RedisStore.with_client(url="redis://localhost:6379")},
+)
+```
+
+> **`lock_ttl` must exceed your slowest handler.** The in-flight marker expires after `lock_ttl`
+> seconds (so a crashed request can't wedge a key forever). If a handler runs longer than that, the
+> marker expires mid-flight and a concurrent retry will see no record and re-run — raise `lock_ttl`
+> above your worst-case handler duration.
+
+##### Cross-process concurrency
+
+By default, in-flight (`409`) detection is serialized per worker with a lock. Litestar's `Store` has
+no atomic check-and-set, so **across multiple processes the default guard is best-effort** — it
+narrows, but does not eliminate, the window where two simultaneous first requests both start.
+
+For a real cross-process guarantee, pass a `claim` — an `AtomicClaim` whose reservation is atomic.
+`RedisAtomicClaim` is provided (duck-typed against `redis.asyncio.Redis`, no hard dependency):
+
+```python
+from redis.asyncio import Redis
+
+from litestar_batteries import IdempotencyConfig, IdempotencyPlugin, RedisAtomicClaim
+
+claim = RedisAtomicClaim(Redis.from_url("redis://localhost:6379"))
+plugin = IdempotencyPlugin(IdempotencyConfig(claim=claim))
+```
+
+When `claim` is set the middleware routes all record I/O through it (via `SET NX`), so the `store`
+setting is unused.
+
+#### Multi-tenant isolation
+
+The store key is namespaced by method + path + key. For a multi-tenant API set `scope` so the same
+key from two different callers never collides (which would replay one caller's response to another):
+
+```python
+IdempotencyConfig(scope=lambda request: request.headers.get("X-Tenant-Id", ""))
+```
+
+#### Errors
+
+`409` (in-flight), `422` (key reused with a different body), and `400` (missing key when
+`require_key=True`, or an over-long/non-ASCII key) are returned as RFC 9457
+`application/problem+json` with a `type` of `urn:litestar-batteries:idempotency:<slug>`.
+
+#### Configuration
+
+`IdempotencyConfig` fields:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `header_name` | `str` | `"Idempotency-Key"` | Request header carrying the key (matched case-insensitively). |
+| `methods` | `Sequence[str]` | `("POST", "PATCH")` | Methods that participate. |
+| `store` | `str` | `"idempotency"` | Litestar store registry name (ignored when `claim` is set). |
+| `ttl` | `int` | `86400` | Seconds a completed response stays replayable. |
+| `lock_ttl` | `int` | `60` | Seconds the in-flight marker survives; **must exceed your slowest handler** (see caveat). |
+| `max_body_bytes` | `int \| None` | `1048576` | Responses larger than this are served but not cached; buffering short-circuits at the cap. `None` disables. |
+| `scope` | `Callable[[Request], str] \| None` | `None` | Per-caller key isolation (e.g. tenant id); see above. |
+| `require_key` | `bool` | `False` | Reject a configured-method request with no key → `400`. |
+| `max_key_length` | `int` | `255` | Reject keys longer than this → `400` (also bounds key-cardinality abuse). |
+| `replay_headers` | `frozenset[str]` | see below | Response headers stored & replayed. |
+| `claim` | `AtomicClaim \| None` | `None` | Atomic cross-process reservation backend (e.g. `RedisAtomicClaim`). |
+
+`replay_headers` defaults to `content-type`, `content-language`, `content-encoding`, `cache-control`,
+`etag`, `expires`, `last-modified`, `location` — volatile/sensitive headers (`set-cookie`,
+`authorization`, hop-by-hop) are intentionally excluded from replays.
+
 ## Development
 
 ```bash

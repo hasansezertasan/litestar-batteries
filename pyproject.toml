@@ -44,7 +44,8 @@ typeCheckingMode = "strict"
 
 # Shipped code (src) stays fully strict. Tests exercise third-party helpers (e.g. Litestar's
 # create_test_client) whose broad signatures trip strict "unknown type" reporting, so silence
-# just that rule under tests/ — everything else remains strict.
+# just that rule under tests/ — everything else remains strict. (White-box access to a private
+# helper is suppressed narrowly at its import site, not relaxed for all of tests/.)
 [[tool.pyright.executionEnvironments]]
 root = "tests"
 reportUnknownVariableType = false
