@@ -18,7 +18,11 @@ from litestar.stores.memory import MemoryStore
 from litestar.testing import AsyncTestClient, create_test_client
 
 from litestar_batteries import IdempotencyConfig, IdempotencyPlugin, RedisAtomicClaim
-from litestar_batteries.idempotency.middleware import _buffer_request, store_key  # pyright: ignore
+from litestar_batteries.idempotency.middleware import (
+    IdempotencyMiddleware,
+    _buffer_request,  # pyright: ignore[reportPrivateUsage]
+    store_key,
+)
 from litestar_batteries.idempotency.models import StoredResponse
 
 PROBLEM_JSON = "application/problem+json"
@@ -36,11 +40,17 @@ class _DictClaim:
         self._data[key] = value
         return None
 
-    async def set(self, key: str, value: bytes, *, ttl: int) -> None:
+    async def set(self, key: str, value: bytes, *, expected: bytes, ttl: int) -> bool:
+        if self._data.get(key) != expected:
+            return False
         self._data[key] = value
+        return True
 
-    async def delete(self, key: str) -> None:
+    async def delete(self, key: str, *, expected: bytes) -> bool:
+        if self._data.get(key) != expected:
+            return False
         self._data.pop(key, None)
+        return True
 
 
 class _FakeRedis:
@@ -67,6 +77,15 @@ class _FakeRedis:
                 del self.store[name]
                 removed += 1
         return removed
+
+    async def eval(self, script: str, numkeys: int, *args: str | bytes | int) -> int:
+        name, expected = str(args[0]), args[1]
+        if self.store.get(name) != expected:
+            return 0
+        if len(args) == 2:
+            return await self.delete(name)
+        self.store[name] = cast("bytes", args[2])
+        return 1
 
 
 REPLAYED_HEADER = "Idempotency-Replayed"
@@ -374,9 +393,11 @@ async def test_redis_atomic_claim() -> None:
     claim = RedisAtomicClaim(redis, prefix="idem:")
     assert await claim.claim("k", b"first", ttl=10) is None  # won the reservation
     assert await claim.claim("k", b"second", ttl=10) == b"first"  # lost → incumbent bytes
-    await claim.set("k", b"done", ttl=10)
+    assert not await claim.set("k", b"wrong", expected=b"other", ttl=10)
+    assert not await claim.delete("k", expected=b"other")
+    assert await claim.set("k", b"done", expected=b"first", ttl=10)
     assert redis.store["idem:k"] == b"done"
-    await claim.delete("k")
+    assert await claim.delete("k", expected=b"done")
     assert "idem:k" not in redis.store
 
 
@@ -390,17 +411,27 @@ def test_same_key_different_query_string_conflicts() -> None:
         assert handler.calls["n"] == 1
 
 
-def test_replays_required_4xx_headers() -> None:
+@pytest.mark.parametrize(
+    ("status", "header", "value"),
+    [
+        (401, "WWW-Authenticate", "Basic"),
+        (405, "Allow", "POST"),
+        (407, "Proxy-Authenticate", "Basic"),
+        (429, "Retry-After", "30"),
+    ],
+)
+def test_replays_required_4xx_headers(status: int, header: str, value: str) -> None:
     @post("/limited")
     async def limited(data: dict[str, Any]) -> Response[dict[str, bool]]:
-        return Response({"ok": False}, status_code=429, headers={"Retry-After": "30"})
+        return Response({"ok": False}, status_code=status, headers={header: value})
 
     with create_test_client(route_handlers=[limited], plugins=[IdempotencyPlugin()]) as client:
         headers = {"Idempotency-Key": "k1"}
         client.post("/limited", headers=headers, json={"a": 1})
         replay = client.post("/limited", headers=headers, json={"a": 1})
         assert replay.headers.get(REPLAYED_HEADER) == "true"
-        assert replay.headers.get("Retry-After") == "30"
+        assert replay.status_code == status
+        assert replay.headers.get(header) == value
 
 
 @pytest.mark.anyio
@@ -450,6 +481,71 @@ async def test_buffer_request_stops_at_limit_while_streaming() -> None:
     _body, _replay, _disc, too_large = await _buffer_request(receive, 8)
     assert too_large
     assert next(chunks, None) is not None  # most chunks were never consumed
+
+
+@pytest.mark.anyio
+async def test_buffer_request_does_not_retain_oversized_chunk() -> None:
+    chunks = iter(
+        [
+            {"type": "http.request", "body": b"ab", "more_body": True},
+            {"type": "http.request", "body": b"x" * 1024, "more_body": False},
+        ]
+    )
+
+    async def receive() -> Any:
+        return next(chunks)
+
+    body, replay, disconnected, too_large = await _buffer_request(receive, 8)
+    assert too_large and not disconnected
+    assert body == b"ab"
+    assert (await replay()).get("body") == b"ab"
+    assert (await replay()).get("body") == b""
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("old_status", [201, 500])
+async def test_expired_owner_cannot_finalize_newer_response(old_status: int) -> None:
+    redis = _FakeRedis()
+    calls = 0
+    config = IdempotencyConfig(claim=RedisAtomicClaim(redis))
+    original = IdempotencyMiddleware(config)
+    newer = IdempotencyMiddleware(config)
+    scope = cast("Any", _raw_scope("/slow", "k"))
+    responses: list[Any] = []
+
+    async def receive() -> Any:
+        return {"type": "http.request", "body": b"{}", "more_body": False}
+
+    async def send(message: Any) -> None:
+        responses.append(message)
+
+    async def discard(message: Any) -> None:
+        pass
+
+    async def downstream(scope: Any, receive: Any, send: Any) -> None:
+        nonlocal calls
+        calls += 1
+        invocation = calls
+        if invocation == 1:
+            redis.store.clear()  # lease expires before the original handler finishes
+            await newer.handle(scope, receive, discard, downstream)
+        await send(
+            {
+                "type": "http.response.start",
+                "status": old_status if invocation == 1 else 201,
+                "headers": [],
+            }
+        )
+        await send(
+            {"type": "http.response.body", "body": str(invocation).encode(), "more_body": False}
+        )
+
+    await original.handle(scope, receive, send, downstream)
+    responses.clear()
+    await newer.handle(scope, receive, send, downstream)
+    assert responses[-1]["body"] == b"2"
+    assert (b"idempotency-replayed", b"true") in responses[0]["headers"]
+    assert calls == 2
 
 
 def test_204_replay_omits_content_length() -> None:

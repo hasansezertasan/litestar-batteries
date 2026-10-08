@@ -31,8 +31,9 @@ DEFAULT_REPLAY_HEADERS = frozenset(
         "expires",
         "last-modified",
         "location",
-        # Required by the cached 4xx statuses: 401, 405 and 429 respectively.
+        # Protocol headers for cached authentication, method and rate-limit errors.
         "www-authenticate",
+        "proxy-authenticate",
         "allow",
         "retry-after",
     }
@@ -59,6 +60,7 @@ class StoredResponse(msgspec.Struct):
     # per-instance factory, so this default is not shared state.
     headers: list[tuple[str, str]] = []
     body: bytes = b""
+    owner: str = ""
 
 
 @dataclass

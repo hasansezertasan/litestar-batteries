@@ -177,6 +177,13 @@ plugin = IdempotencyPlugin(IdempotencyConfig(claim=claim))
 When `claim` is set the middleware routes all record I/O through it (via `SET NX`), so the `store`
 setting is unused.
 
+Each reservation carries a unique ownership token. Custom `AtomicClaim` backends must implement
+`set(key, value, expected=sentinel, ttl=...)` and `delete(key, expected=sentinel)` as atomic
+compare-and-set/delete operations, returning whether the expected reservation was still present.
+`RedisAtomicClaim` uses Redis Lua scripts for these operations (the client must support `eval`).
+An expired owner cannot overwrite or delete a newer reservation or completed response.
+This does not renew the lease: keep `lock_ttl` above the handler duration to prevent duplicate execution.
+
 #### Multi-tenant isolation
 
 The store key is namespaced by method + path + key. For a multi-tenant API set `scope` so the same
@@ -212,8 +219,9 @@ IdempotencyConfig(scope=lambda request: request.headers.get("X-Tenant-Id", ""))
 | `claim` | `AtomicClaim \| None` | `None` | Atomic cross-process reservation backend (e.g. `RedisAtomicClaim`). |
 
 `replay_headers` defaults to `content-type`, `content-language`, `content-encoding`, `cache-control`,
-`etag`, `expires`, `last-modified`, `location`, `www-authenticate`, `allow`, `retry-after` (the last three are
-required by cached `401`/`405`/`429` responses) — volatile/sensitive headers (`set-cookie`,
+`etag`, `expires`, `last-modified`, `location`, `www-authenticate`, `proxy-authenticate`, `allow`,
+`retry-after` (protocol headers for cached `401`/`407`/`405`/`429` responses) — volatile/sensitive
+headers (`set-cookie`,
 `authorization`, hop-by-hop) are intentionally excluded from replays.
 
 ## Development

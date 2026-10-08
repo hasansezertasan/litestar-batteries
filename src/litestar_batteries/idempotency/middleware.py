@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 from typing import TYPE_CHECKING, cast
+from uuid import uuid4
 
 import msgspec
 from litestar import Request
@@ -61,15 +62,17 @@ async def _buffer_request(
     too_large = False
     while True:
         message = await receive()
-        messages.append(message)
         if message["type"] == "http.request":
-            body.extend(message.get("body", b""))
-            if max_bytes is not None and len(body) > max_bytes:
+            chunk = message.get("body", b"")
+            if max_bytes is not None and len(body) + len(chunk) > max_bytes:
                 too_large = True
                 break
+            messages.append(message)
+            body.extend(chunk)
             if not message.get("more_body", False):
                 break
         else:  # http.disconnect
+            messages.append(message)
             disconnected = True
             break
 
@@ -223,7 +226,7 @@ class IdempotencyMiddleware(ASGIMiddleware):
         claim = config.claim
         store: Store | None = None if claim is not None else request.app.stores.get(config.store)
         sentinel = msgspec.msgpack.encode(
-            StoredResponse(state="processing", request_hash=request_hash)
+            StoredResponse(state="processing", request_hash=request_hash, owner=uuid4().hex)
         )
 
         if claim is not None:
@@ -247,17 +250,21 @@ class IdempotencyMiddleware(ASGIMiddleware):
 
         async def persist(value: bytes) -> None:
             if claim is not None:
-                await claim.set(record_key, value, ttl=config.ttl)
+                await claim.set(record_key, value, expected=sentinel, ttl=config.ttl)
             else:
                 assert store is not None
-                await store.set(record_key, value, expires_in=config.ttl)
+                async with self._lock:
+                    if await store.get(record_key) == sentinel:
+                        await store.set(record_key, value, expires_in=config.ttl)
 
         async def drop() -> None:
             if claim is not None:
-                await claim.delete(record_key)
+                await claim.delete(record_key, expected=sentinel)
             else:
                 assert store is not None
-                await store.delete(record_key)
+                async with self._lock:
+                    if await store.get(record_key) == sentinel:
+                        await store.delete(record_key)
 
         if record is not None:
             if record.state == "processing":

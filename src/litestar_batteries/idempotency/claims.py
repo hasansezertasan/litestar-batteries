@@ -31,12 +31,12 @@ class AtomicClaim(Protocol):
         """
         ...
 
-    async def set(self, key: str, value: bytes, *, ttl: int) -> None:
-        """Overwrite ``key`` with ``value`` for ``ttl`` seconds."""
+    async def set(self, key: str, value: bytes, *, expected: bytes, ttl: int) -> bool:
+        """Atomically replace ``key`` only if it holds ``expected``; return success."""
         ...
 
-    async def delete(self, key: str) -> None:
-        """Remove ``key`` (releases the reservation)."""
+    async def delete(self, key: str, *, expected: bytes) -> bool:
+        """Atomically remove ``key`` only if it holds ``expected``; return success."""
         ...
 
 
@@ -47,14 +47,31 @@ class _RedisClient(Protocol):
         self, name: str, value: bytes, *, nx: bool = ..., ex: int | None = ...
     ) -> Awaitable[bool | None]: ...
     def get(self, name: str) -> Awaitable[bytes | None]: ...
-    def delete(self, *names: str) -> Awaitable[int]: ...
+    def eval(self, script: str, numkeys: int, *args: str | bytes | int) -> Awaitable[int]: ...
+
+
+_SET_IF_OWNER = """
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+    redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
+    return 1
+end
+return 0
+"""
+_DELETE_IF_OWNER = """
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+    return redis.call('DEL', KEYS[1])
+end
+return 0
+"""
 
 
 class RedisAtomicClaim:
     """:class:`AtomicClaim` backed by a ``redis.asyncio.Redis`` client.
 
     ``redis`` is duck-typed (no hard dependency); any client exposing
-    ``set(name, value, nx=, ex=)`` / ``get`` / ``delete`` works::
+    ``set(name, value, nx=, ex=)`` / ``get`` / ``eval`` works. Finalization uses
+    atomic Lua comparisons against the unique reservation, so an expired owner
+    cannot change a newer record::
 
         from redis.asyncio import Redis
         from litestar_batteries import IdempotencyConfig, IdempotencyPlugin, RedisAtomicClaim
@@ -79,8 +96,12 @@ class RedisAtomicClaim:
             # The incumbent expired or was released between SET NX and GET; claiming
             # again (rather than returning None) keeps the reservation atomic.
 
-    async def set(self, key: str, value: bytes, *, ttl: int) -> None:
-        await self._redis.set(self._prefix + key, value, ex=ttl)
+    async def set(self, key: str, value: bytes, *, expected: bytes, ttl: int) -> bool:
+        """Persist a completed response only while the reservation is still owned."""
+        return bool(
+            await self._redis.eval(_SET_IF_OWNER, 1, self._prefix + key, expected, value, ttl)
+        )
 
-    async def delete(self, key: str) -> None:
-        await self._redis.delete(self._prefix + key)
+    async def delete(self, key: str, *, expected: bytes) -> bool:
+        """Release a reservation only while it is still owned."""
+        return bool(await self._redis.eval(_DELETE_IF_OWNER, 1, self._prefix + key, expected))
