@@ -128,3 +128,12 @@ Folded in #1–#5 from the backlog above (on the PR #12 branch):
 - ASGI response events may omit `headers` and `body`; read them with empty defaults.
 - Regression coverage includes cancellation during the final send and persistence, repeated cancels,
   cancellation before headers, and omitted optional response fields.
+
+### Request-key and replay-metadata sweep
+
+- An absent idempotency header remains optional; an explicitly empty key is rejected as `invalid-key`
+  regardless of `require_key`, rather than silently bypassing deduplication.
+- Preserve `Content-Range` by default so single-range 206 responses remain protocol-valid on replay.
+- Responses declaring ASGI trailers are uncacheable: forwarding them is safe, but replay currently
+  stores neither the trailers flag nor their metadata. Retry the handler instead of replaying a
+  metadata-truncated response.

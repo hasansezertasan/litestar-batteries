@@ -26,6 +26,7 @@ DEFAULT_REPLAY_HEADERS = frozenset(
         "content-type",
         "content-language",
         "content-encoding",
+        "content-range",
         "cache-control",
         "etag",
         "expires",

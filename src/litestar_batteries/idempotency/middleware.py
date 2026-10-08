@@ -191,7 +191,7 @@ class IdempotencyMiddleware(ASGIMiddleware):
             return
 
         key = request.headers.get(config.header_name)
-        if not key:
+        if key is None:
             if config.require_key:
                 await _problem(
                     send,
@@ -203,7 +203,7 @@ class IdempotencyMiddleware(ASGIMiddleware):
                 return
             await next_app(scope, receive, send)
             return
-        if len(key) > config.max_key_length or not (key.isascii() and key.isprintable()):
+        if not key or len(key) > config.max_key_length or not (key.isascii() and key.isprintable()):
             await _problem(
                 send,
                 HTTP_400_BAD_REQUEST,
@@ -311,11 +311,13 @@ class IdempotencyMiddleware(ASGIMiddleware):
         captured_body = bytearray()
         too_large = False
         complete = False
+        has_trailers = False
 
         async def send_wrapper(message: Message) -> None:
-            nonlocal status, captured_headers, too_large, complete
+            nonlocal status, captured_headers, too_large, complete, has_trailers
             if message["type"] == "http.response.start":
                 status = message["status"]
+                has_trailers = bool(message.get("trailers", False))
                 captured_headers = [
                     (name.decode("latin-1").lower(), value.decode("latin-1"))
                     for name, value in message.get("headers", [])
@@ -343,7 +345,7 @@ class IdempotencyMiddleware(ASGIMiddleware):
             # else leave the in-flight marker to expire (409 until lock_ttl).
             if status == 0 and not isinstance(exc, asyncio.CancelledError):
                 await _shield_finalization(drop())
-            elif complete and _is_cacheable(status) and not too_large:
+            elif complete and _is_cacheable(status) and not too_large and not has_trailers:
                 await _shield_finalization(
                     persist(_encode_done(request_hash, status, captured_headers, captured_body))
                 )
@@ -352,7 +354,7 @@ class IdempotencyMiddleware(ASGIMiddleware):
         # Cache only final, faithfully-replayable responses: 2xx and 4xx. Redirects
         # (3xx), 5xx, a never-sent response (status 0), and oversized/streaming
         # bodies are not cached, so a retry re-runs.
-        if _is_cacheable(status) and complete and not too_large:
+        if _is_cacheable(status) and complete and not too_large and not has_trailers:
             await _shield_finalization(
                 persist(_encode_done(request_hash, status, captured_headers, captured_body))
             )

@@ -135,6 +135,7 @@ Only `2xx` and `4xx` responses are cached: they're final and fully replayable fr
 status + body + content-type. Redirects are skipped (the `Location` header isn't carried), and `5xx`
 must stay retryable.
 `426 Upgrade Required` is also skipped: its required hop-by-hop `Upgrade` header is not replayed.
+Responses declaring ASGI trailers are served but not cached, so a retry retains their full metadata.
 If delivery or task cancellation interrupts a completed response, finalization is shielded until the
 captured response is persisted. Cancellation before response completion leaves the reservation to
 expire, because the handler may already have performed its side effect.
@@ -200,7 +201,7 @@ IdempotencyConfig(scope=lambda request: request.headers.get("X-Tenant-Id", ""))
 #### Errors
 
 `409` (in-flight), `422` (key reused with a different body), and `400` (missing key when
-`require_key=True`, or an over-long/non-ASCII key) are returned as RFC 9457
+`require_key=True`, or an empty/over-long/non-ASCII key) are returned as RFC 9457
 `application/problem+json` with a `type` of `urn:litestar-batteries:idempotency:<slug>`.
 
 #### Configuration
@@ -222,7 +223,7 @@ IdempotencyConfig(scope=lambda request: request.headers.get("X-Tenant-Id", ""))
 | `replay_headers` | `frozenset[str]` | see below | Response headers stored & replayed. |
 | `claim` | `AtomicClaim \| None` | `None` | Atomic cross-process reservation backend (e.g. `RedisAtomicClaim`). |
 
-`replay_headers` defaults to `content-type`, `content-language`, `content-encoding`, `cache-control`,
+`replay_headers` defaults to `content-type`, `content-language`, `content-encoding`, `content-range`, `cache-control`,
 `etag`, `expires`, `last-modified`, `location`, `www-authenticate`, `proxy-authenticate`, `allow`,
 `retry-after` (protocol headers for cached `401`/`407`/`405`/`429` responses) — volatile/sensitive
 headers (`set-cookie`,

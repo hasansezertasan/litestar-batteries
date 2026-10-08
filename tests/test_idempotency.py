@@ -393,6 +393,19 @@ def test_invalid_key_is_rejected() -> None:
         assert handler.calls["n"] == 0
 
 
+@pytest.mark.parametrize("require_key", [False, True])
+def test_explicit_empty_key_is_invalid(require_key: bool) -> None:
+    handler = _counting_create()
+    config = IdempotencyConfig(require_key=require_key)
+    with create_test_client(
+        route_handlers=[handler], plugins=[IdempotencyPlugin(config)]
+    ) as client:
+        response = client.post("/create", headers={"Idempotency-Key": ""}, json={})
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json()["type"].endswith("invalid-key")
+        assert handler.calls["n"] == 0
+
+
 def test_error_responses_are_problem_json() -> None:
     handler = _counting_create()
     with create_test_client(route_handlers=[handler], plugins=[IdempotencyPlugin()]) as client:
@@ -462,13 +475,14 @@ def test_same_key_different_query_string_conflicts() -> None:
 @pytest.mark.parametrize(
     ("status", "header", "value"),
     [
+        (206, "Content-Range", "bytes 0-11/24"),
         (401, "WWW-Authenticate", "Basic"),
         (405, "Allow", "POST"),
         (407, "Proxy-Authenticate", "Basic"),
         (429, "Retry-After", "30"),
     ],
 )
-def test_replays_required_4xx_headers(status: int, header: str, value: str) -> None:
+def test_replays_required_protocol_headers(status: int, header: str, value: str) -> None:
     @post("/limited")
     async def limited(data: dict[str, Any]) -> Response[dict[str, bool]]:
         return Response({"ok": False}, status_code=status, headers={header: value})
@@ -785,3 +799,32 @@ async def test_cancellation_before_response_keeps_reservation() -> None:
     await middleware.handle(scope, receive, send, downstream)
     assert calls == 1
     assert responses[0]["status"] == HTTP_409_CONFLICT
+
+
+@pytest.mark.anyio
+async def test_responses_with_trailers_are_not_cached() -> None:
+    middleware = IdempotencyMiddleware(IdempotencyConfig(claim=_DictClaim()))
+    scope = cast("Any", _raw_scope("/trailers", "k"))
+    responses: list[Any] = []
+    calls = 0
+
+    async def receive() -> Any:
+        return {"type": "http.request", "body": b"{}", "more_body": False}
+
+    async def send(message: Any) -> None:
+        responses.append(message)
+
+    async def downstream(scope: Any, receive: Any, send: Any) -> None:
+        nonlocal calls
+        calls += 1
+        await send({"type": "http.response.start", "status": 200, "headers": [], "trailers": True})
+        await send({"type": "http.response.body", "body": b"done", "more_body": False})
+        await send({"type": "http.response.trailers", "headers": [(b"digest", b"sha-256=value")]})
+
+    for _ in range(2):
+        responses.clear()
+        await middleware.handle(scope, receive, send, downstream)
+        assert responses[0]["trailers"] is True
+        assert responses[-1]["type"] == "http.response.trailers"
+        assert responses[-1]["headers"] == [(b"digest", b"sha-256=value")]
+    assert calls == 2
