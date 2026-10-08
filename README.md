@@ -135,6 +135,9 @@ Only `2xx` and `4xx` responses are cached: they're final and fully replayable fr
 status + body + content-type. Redirects are skipped (the `Location` header isn't carried), and `5xx`
 must stay retryable.
 `426 Upgrade Required` is also skipped: its required hop-by-hop `Upgrade` header is not replayed.
+If delivery or task cancellation interrupts a completed response, finalization is shielded until the
+captured response is persisted. Cancellation before response completion leaves the reservation to
+expire, because the handler may already have performed its side effect.
 
 #### Backing store
 

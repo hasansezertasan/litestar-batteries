@@ -27,6 +27,7 @@ from litestar.status_codes import (
 from litestar_batteries.idempotency.models import StoredResponse
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable
     from typing import Any
 
     from litestar.stores.base import Store
@@ -35,6 +36,20 @@ if TYPE_CHECKING:
     from litestar_batteries.idempotency.models import IdempotencyConfig
 
 _PROBLEM_BASE = "urn:litestar-batteries:idempotency"
+
+
+async def _shield_finalization(operation: Awaitable[None]) -> None:
+    """Finish a record mutation before propagating cancellation, including repeated cancels."""
+    task = asyncio.ensure_future(operation)
+    cancelled = False
+    while not task.done():
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            cancelled = True
+    task.result()
+    if cancelled:
+        raise asyncio.CancelledError
 
 
 def store_key(method: str, path: str, key: str, scope: str = "") -> str:
@@ -303,41 +318,43 @@ class IdempotencyMiddleware(ASGIMiddleware):
                 status = message["status"]
                 captured_headers = [
                     (name.decode("latin-1").lower(), value.decode("latin-1"))
-                    for name, value in message["headers"]
+                    for name, value in message.get("headers", [])
                     if name.decode("latin-1").lower() in allow
                 ]
             elif message["type"] == "http.response.body":
                 complete = not message.get("more_body", False)
+                chunk = message.get("body", b"")
                 if not too_large:
-                    if (
-                        max_bytes is not None
-                        and len(captured_body) + len(message["body"]) > max_bytes
-                    ):
+                    if max_bytes is not None and len(captured_body) + len(chunk) > max_bytes:
                         # Stop buffering (and drop what we have) so a large or
                         # streaming response can't grow memory without bound.
                         too_large = True
                         captured_body.clear()
                     else:
-                        captured_body.extend(message["body"])
+                        captured_body.extend(chunk)
             await send(message)
 
         try:
             await next_app(scope, buffered_receive, send_wrapper)
-        except Exception:
+        except (Exception, asyncio.CancelledError) as exc:
             # Delivery can fail (e.g. client disconnect -> OSError) after the handler's
             # side effect ran. Never release the claim then, or the client's natural
             # retry would re-execute it: persist the response if it was fully captured,
             # else leave the in-flight marker to expire (409 until lock_ttl).
-            if status == 0:  # nothing was sent: the handler failed before responding
-                await drop()
+            if status == 0 and not isinstance(exc, asyncio.CancelledError):
+                await _shield_finalization(drop())
             elif complete and _is_cacheable(status) and not too_large:
-                await persist(_encode_done(request_hash, status, captured_headers, captured_body))
+                await _shield_finalization(
+                    persist(_encode_done(request_hash, status, captured_headers, captured_body))
+                )
             raise
 
         # Cache only final, faithfully-replayable responses: 2xx and 4xx. Redirects
         # (3xx), 5xx, a never-sent response (status 0), and oversized/streaming
         # bodies are not cached, so a retry re-runs.
         if _is_cacheable(status) and complete and not too_large:
-            await persist(_encode_done(request_hash, status, captured_headers, captured_body))
+            await _shield_finalization(
+                persist(_encode_done(request_hash, status, captured_headers, captured_body))
+            )
         else:
-            await drop()  # not cached → let a retry re-run
+            await _shield_finalization(drop())  # not cached → let a retry re-run

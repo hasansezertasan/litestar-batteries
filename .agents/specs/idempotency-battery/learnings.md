@@ -117,3 +117,14 @@ Folded in #1–#5 from the backlog above (on the PR #12 branch):
   is intentionally absent from replay headers. Retries reach the handler and retain that metadata.
 - Both regressions failed before their fixes. Canonical verification is clean with 48 tests passing
   and 96.61% coverage.
+
+### ASGI cancellation and optional event fields
+
+- Catch `asyncio.CancelledError` explicitly; it inherits from `BaseException`, not `Exception`.
+  Persist a complete captured response after cancellation during delivery, and retain the in-flight
+  marker on cancellation before completion (even before headers, because side effects may have run).
+- Shield finalization in a strongly referenced task, wait through repeated cancellation requests,
+  then propagate cancellation. The normal persistence path needs the same protection as the error path.
+- ASGI response events may omit `headers` and `body`; read them with empty defaults.
+- Regression coverage includes cancellation during the final send and persistence, repeated cancels,
+  cancellation before headers, and omitted optional response fields.

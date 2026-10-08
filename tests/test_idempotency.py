@@ -1,5 +1,6 @@
 """Tests for the idempotency battery."""
 
+import asyncio
 import tracemalloc
 from typing import Any, cast
 
@@ -678,3 +679,109 @@ async def test_delivery_failure_mid_response_does_not_release_the_claim() -> Non
         retry = client.post("/create", headers={"Idempotency-Key": "k1"}, json={"a": 1})
         assert retry.status_code == HTTP_409_CONFLICT  # still in flight, not re-run
         assert handler.calls["n"] == 1
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("cancel_at", ["send", "persist"])
+async def test_cancellation_finalizes_captured_response(cancel_at: str) -> None:
+    send_started = asyncio.Event()
+    persist_started = asyncio.Event()
+    release_persist = asyncio.Event()
+
+    class _SlowClaim(_DictClaim):
+        async def set(self, key: str, value: bytes, *, expected: bytes, ttl: int) -> bool:
+            persist_started.set()
+            await release_persist.wait()
+            return await super().set(key, value, expected=expected, ttl=ttl)
+
+    middleware = IdempotencyMiddleware(IdempotencyConfig(claim=_SlowClaim()))
+    scope = cast("Any", _raw_scope("/cancel", "k"))
+    calls = 0
+    replay: list[Any] = []
+
+    async def receive() -> Any:
+        return {"type": "http.request", "body": b"{}", "more_body": False}
+
+    async def send(message: Any) -> None:
+        if message["type"] == "http.response.body" and cancel_at == "send":
+            send_started.set()
+            await asyncio.Event().wait()
+
+    async def collect(message: Any) -> None:
+        replay.append(message)
+
+    async def downstream(scope: Any, receive: Any, send: Any) -> None:
+        nonlocal calls
+        calls += 1
+        await send({"type": "http.response.start", "status": 201, "headers": []})
+        await send({"type": "http.response.body", "body": b"done", "more_body": False})
+
+    request = asyncio.create_task(middleware.handle(scope, receive, send, downstream))
+    try:
+        await asyncio.wait_for((send_started if cancel_at == "send" else persist_started).wait(), 1)
+        request.cancel()
+        await asyncio.wait_for(persist_started.wait(), 1)
+        await asyncio.sleep(0)
+        request.cancel()  # repeated cancellation must not interrupt the finalization write
+        await asyncio.sleep(0)
+    finally:
+        release_persist.set()
+        with pytest.raises(asyncio.CancelledError):
+            await request
+    await middleware.handle(scope, receive, collect, downstream)
+    assert calls == 1
+    assert replay[-1]["body"] == b"done"
+    assert (b"idempotency-replayed", b"true") in replay[0]["headers"]
+
+
+@pytest.mark.anyio
+async def test_optional_asgi_response_fields_are_replayed() -> None:
+    middleware = IdempotencyMiddleware(IdempotencyConfig(claim=_DictClaim()))
+    scope = cast("Any", _raw_scope("/empty", "k"))
+    responses: list[Any] = []
+    calls = 0
+
+    async def receive() -> Any:
+        return {"type": "http.request", "body": b"{}", "more_body": False}
+
+    async def send(message: Any) -> None:
+        responses.append(message)
+
+    async def downstream(scope: Any, receive: Any, send: Any) -> None:
+        nonlocal calls
+        calls += 1
+        await send({"type": "http.response.start", "status": 204})
+        await send({"type": "http.response.body"})
+
+    await middleware.handle(scope, receive, send, downstream)
+    responses.clear()
+    await middleware.handle(scope, receive, send, downstream)
+    assert calls == 1
+    assert responses[0]["status"] == 204
+    assert responses[-1]["body"] == b""
+    assert (b"idempotency-replayed", b"true") in responses[0]["headers"]
+
+
+@pytest.mark.anyio
+async def test_cancellation_before_response_keeps_reservation() -> None:
+    middleware = IdempotencyMiddleware(IdempotencyConfig(claim=_DictClaim()))
+    scope = cast("Any", _raw_scope("/cancel", "k"))
+    responses: list[Any] = []
+    calls = 0
+
+    async def receive() -> Any:
+        return {"type": "http.request", "body": b"{}", "more_body": False}
+
+    async def send(message: Any) -> None:
+        responses.append(message)
+
+    async def downstream(scope: Any, receive: Any, send: Any) -> None:
+        nonlocal calls
+        calls += 1  # represents a side effect before response headers are emitted
+        raise asyncio.CancelledError
+
+    with pytest.raises(asyncio.CancelledError):
+        await middleware.handle(scope, receive, send, downstream)
+    await middleware.handle(scope, receive, send, downstream)
+    assert calls == 1
+    assert responses[0]["status"] == HTTP_409_CONFLICT
