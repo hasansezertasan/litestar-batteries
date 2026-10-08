@@ -15,8 +15,10 @@ from litestar import Request
 from litestar.enums import ScopeType
 from litestar.middleware import ASGIMiddleware
 from litestar.status_codes import (
+    HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
     HTTP_409_CONFLICT,
+    HTTP_413_REQUEST_ENTITY_TOO_LARGE,
     HTTP_422_UNPROCESSABLE_ENTITY,
 )
 
@@ -42,9 +44,12 @@ def store_key(method: str, path: str, key: str, scope: str = "") -> str:
     return f"{method}:{len(scope)}:{scope}:{len(path)}:{path}:{key}"
 
 
-async def _buffer_request(receive: Receive) -> tuple[bytes, Receive, bool]:
-    """Drain the request body from ``receive``; return it, a replay receive, and
-    whether the client disconnected before the body was fully received.
+async def _buffer_request(
+    receive: Receive, max_bytes: int | None = None
+) -> tuple[bytes, Receive, bool, bool]:
+    """Drain the request body from ``receive``; return it, a replay receive,
+    whether the client disconnected before the body was fully received, and
+    whether the body exceeded ``max_bytes`` (reading stops as soon as it does).
 
     ASGI bodies can only be consumed once, so the middleware buffers the messages
     to fingerprint the body, then hands the downstream app a ``receive`` that
@@ -53,11 +58,15 @@ async def _buffer_request(receive: Receive) -> tuple[bytes, Receive, bool]:
     messages: list[ReceiveMessage] = []
     body = bytearray()
     disconnected = False
+    too_large = False
     while True:
         message = await receive()
         messages.append(message)
         if message["type"] == "http.request":
             body.extend(message.get("body", b""))
+            if max_bytes is not None and len(body) > max_bytes:
+                too_large = True
+                break
             if not message.get("more_body", False):
                 break
         else:  # http.disconnect
@@ -72,7 +81,7 @@ async def _buffer_request(receive: Receive) -> tuple[bytes, Receive, bool]:
         except StopIteration:  # pragma: no cover - defensive; body is fully buffered above
             return cast("ReceiveMessage", {"type": "http.request", "body": b"", "more_body": False})
 
-    return bytes(body), replay, disconnected
+    return bytes(body), replay, disconnected, too_large
 
 
 async def _problem(send: Send, status: int, slug: str, title: str, detail: str) -> None:
@@ -93,11 +102,38 @@ async def _problem(send: Send, status: int, slug: str, title: str, detail: str) 
     await send({"type": "http.response.body", "body": body, "more_body": False})
 
 
+def _is_cacheable(status: int) -> bool:
+    return 200 <= status < 300 or 400 <= status < 500
+
+
+def _encode_done(
+    request_hash: str, status: int, headers: list[tuple[str, str]], body: bytearray
+) -> bytes:
+    return msgspec.msgpack.encode(
+        StoredResponse(
+            state="done",
+            request_hash=request_hash,
+            status=status,
+            headers=headers,
+            body=bytes(body),
+        )
+    )
+
+
+async def _too_large(send: Send, limit: int) -> None:
+    await _problem(
+        send,
+        HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        "request-too-large",
+        "Request body too large",
+        f"Requests carrying an idempotency key are limited to {limit} bytes.",
+    )
+
+
 async def _replay(send: Send, record: StoredResponse) -> None:
-    headers: list[tuple[bytes, bytes]] = [
-        (b"idempotency-replayed", b"true"),
-        (b"content-length", str(len(record.body)).encode()),
-    ]
+    headers: list[tuple[bytes, bytes]] = [(b"idempotency-replayed", b"true")]
+    if record.status != HTTP_204_NO_CONTENT:  # RFC 9110 §8.6: no Content-Length on 204
+        headers.append((b"content-length", str(len(record.body)).encode()))
     headers.extend(
         (name.encode("latin-1"), value.encode("latin-1")) for name, value in record.headers
     )
@@ -158,7 +194,23 @@ class IdempotencyMiddleware(ASGIMiddleware):
             )
             return
 
-        body, buffered_receive, disconnected = await _buffer_request(receive)
+        max_request = config.max_request_bytes
+        declared = request.headers.get("content-length")
+        if (
+            max_request is not None
+            and declared is not None
+            and declared.isdigit()
+            and int(declared) > max_request
+        ):
+            await _too_large(send, max_request)
+            return
+        body, buffered_receive, disconnected, oversized = await _buffer_request(
+            receive, max_request
+        )
+        if oversized:
+            assert max_request is not None
+            await _too_large(send, max_request)
+            return
         if disconnected:
             # Client went away before we had a full request; don't persist anything.
             await next_app(scope, buffered_receive, send)
@@ -234,9 +286,10 @@ class IdempotencyMiddleware(ASGIMiddleware):
         captured_headers: list[tuple[str, str]] = []
         captured_body = bytearray()
         too_large = False
+        complete = False
 
         async def send_wrapper(message: Message) -> None:
-            nonlocal status, captured_headers, too_large
+            nonlocal status, captured_headers, too_large, complete
             if message["type"] == "http.response.start":
                 status = message["status"]
                 captured_headers = [
@@ -245,6 +298,7 @@ class IdempotencyMiddleware(ASGIMiddleware):
                     if name.decode("latin-1").lower() in allow
                 ]
             elif message["type"] == "http.response.body":
+                complete = not message.get("more_body", False)
                 if not too_large:
                     captured_body.extend(message["body"])
                     if max_bytes is not None and len(captured_body) > max_bytes:
@@ -256,25 +310,21 @@ class IdempotencyMiddleware(ASGIMiddleware):
 
         try:
             await next_app(scope, buffered_receive, send_wrapper)
-        except Exception:  # pragma: no cover - Litestar renders handler errors to a 5xx response;
-            await drop()  # this guards only ASGI-level failures below the app
+        except Exception:
+            # Delivery can fail (e.g. client disconnect -> OSError) after the handler's
+            # side effect ran. Never release the claim then, or the client's natural
+            # retry would re-execute it: persist the response if it was fully captured,
+            # else leave the in-flight marker to expire (409 until lock_ttl).
+            if status == 0:  # nothing was sent: the handler failed before responding
+                await drop()
+            elif complete and _is_cacheable(status) and not too_large:
+                await persist(_encode_done(request_hash, status, captured_headers, captured_body))
             raise
 
         # Cache only final, faithfully-replayable responses: 2xx and 4xx. Redirects
         # (3xx), 5xx, a never-sent response (status 0), and oversized/streaming
         # bodies are not cached, so a retry re-runs.
-        cacheable = 200 <= status < 300 or 400 <= status < 500
-        if cacheable and not too_large:
-            await persist(
-                msgspec.msgpack.encode(
-                    StoredResponse(
-                        state="done",
-                        request_hash=request_hash,
-                        status=status,
-                        headers=captured_headers,
-                        body=bytes(captured_body),
-                    )
-                )
-            )
+        if _is_cacheable(status) and not too_large:
+            await persist(_encode_done(request_hash, status, captured_headers, captured_body))
         else:
             await drop()  # not cached → let a retry re-run

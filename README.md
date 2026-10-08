@@ -204,6 +204,7 @@ IdempotencyConfig(scope=lambda request: request.headers.get("X-Tenant-Id", ""))
 | `ttl` | `int` | `86400` | Seconds a completed response stays replayable. |
 | `lock_ttl` | `int` | `60` | Seconds the in-flight marker survives; **must exceed your slowest handler** (see caveat). |
 | `max_body_bytes` | `int \| None` | `1048576` | Responses larger than this are served but not cached; buffering short-circuits at the cap. `None` disables. |
+| `max_request_bytes` | `int \| None` | `10485760` | Request bodies larger than this are rejected with `413` before buffering (matches Litestar's default body limit). `None` disables. |
 | `scope` | `Callable[[Request], str] \| None` | `None` | Per-caller key isolation (e.g. tenant id); see above. |
 | `require_key` | `bool` | `False` | Reject a configured-method request with no key → `400`. |
 | `max_key_length` | `int` | `255` | Reject keys longer than this → `400` (also bounds key-cardinality abuse). |

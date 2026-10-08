@@ -79,6 +79,10 @@ class IdempotencyConfig:
     but not stored (buffering short-circuits at the cap, bounding memory). ``None``
     disables the cap.
 
+    ``max_request_bytes`` caps the request body buffered to fingerprint it; a larger
+    body (by ``Content-Length`` or while streaming) is rejected with ``413`` before it
+    is held in memory. ``None`` disables the cap.
+
     ``scope`` isolates keys per caller: it maps a request to a scope string (e.g.
     the authenticated user/tenant id) folded into the store key, so two callers
     using the same key on the same endpoint never replay each other's response.
@@ -99,6 +103,7 @@ class IdempotencyConfig:
     ttl: int = 86_400
     lock_ttl: int = 60
     max_body_bytes: int | None = 1_048_576
+    max_request_bytes: int | None = 10_485_760
     scope: Callable[[Request[Any, Any, Any]], str] | None = None
     require_key: bool = False
     max_key_length: int = 255

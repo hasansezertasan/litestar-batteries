@@ -10,6 +10,7 @@ from litestar.status_codes import (
     HTTP_201_CREATED,
     HTTP_400_BAD_REQUEST,
     HTTP_409_CONFLICT,
+    HTTP_413_REQUEST_ENTITY_TOO_LARGE,
     HTTP_422_UNPROCESSABLE_ENTITY,
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
@@ -272,7 +273,7 @@ async def test_buffer_request_reassembles_chunked_body() -> None:
     async def receive() -> Any:
         return next(stream)
 
-    body, replay, disconnected = await _buffer_request(receive)
+    body, replay, disconnected, _big = await _buffer_request(receive)
     assert body == b"abcd"  # chunks reassembled for fingerprinting
     assert not disconnected
     assert cast("dict[str, Any]", await replay())["body"] == b"ab"  # replayed verbatim to the app
@@ -284,7 +285,7 @@ async def test_buffer_request_flags_disconnect() -> None:
     async def receive() -> Any:
         return {"type": "http.disconnect"}
 
-    body, _replay, disconnected = await _buffer_request(receive)
+    body, _replay, disconnected, _big = await _buffer_request(receive)
     assert body == b""
     assert disconnected
 
@@ -424,3 +425,113 @@ async def test_redis_claim_retries_when_incumbent_vanishes() -> None:
     assert await claim.claim("k", b"mine", ttl=10) is None  # re-acquired, not a phantom win
     assert redis.store["idempotency:k"] == b"mine"
     assert await claim.claim("k", b"other", ttl=10) == b"mine"
+
+
+def test_oversized_request_is_rejected_before_buffering() -> None:
+    handler = _counting_create()
+    config = IdempotencyConfig(max_request_bytes=16)
+    with create_test_client(
+        route_handlers=[handler], plugins=[IdempotencyPlugin(config)]
+    ) as client:
+        headers = {"Idempotency-Key": "k1"}
+        resp = client.post("/create", headers=headers, json={"big": "x" * 64})
+        assert resp.status_code == HTTP_413_REQUEST_ENTITY_TOO_LARGE
+        assert resp.json()["type"].endswith("request-too-large")
+        assert handler.calls["n"] == 0
+
+
+@pytest.mark.anyio
+async def test_buffer_request_stops_at_limit_while_streaming() -> None:
+    chunks = iter([{"type": "http.request", "body": b"abcdef", "more_body": True}] * 100)
+
+    async def receive() -> Any:
+        return next(chunks)
+
+    _body, _replay, _disc, too_large = await _buffer_request(receive, 8)
+    assert too_large
+    assert next(chunks, None) is not None  # most chunks were never consumed
+
+
+def test_204_replay_omits_content_length() -> None:
+    @post("/gone", status_code=204)
+    async def gone(data: dict[str, Any]) -> None:
+        return None
+
+    with create_test_client(route_handlers=[gone], plugins=[IdempotencyPlugin()]) as client:
+        headers = {"Idempotency-Key": "k1"}
+        first = client.post("/gone", headers=headers, json={"a": 1})
+        replay = client.post("/gone", headers=headers, json={"a": 1})
+        assert first.status_code == replay.status_code == 204
+        assert replay.headers.get(REPLAYED_HEADER) == "true"
+        assert "content-length" not in replay.headers
+
+
+def _raw_scope(path: str, key: str) -> dict[str, Any]:
+    return {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode(),
+        "root_path": "",
+        "query_string": b"",
+        "headers": [
+            (b"idempotency-key", key.encode()),
+            (b"content-type", b"application/json"),
+        ],
+        "client": ("testclient", 5000),
+        "server": ("testserver", 80),
+    }
+
+
+@pytest.mark.anyio
+async def test_delivery_failure_after_full_capture_keeps_the_response() -> None:
+    handler = _counting_create()
+    with create_test_client(route_handlers=[handler], plugins=[IdempotencyPlugin()]) as client:
+        sent = False
+
+        async def receive() -> Any:
+            nonlocal sent
+            if sent:
+                return {"type": "http.disconnect"}
+            sent = True
+            return {"type": "http.request", "body": b'{"a":1}', "more_body": False}
+
+        async def failing_send(message: Any) -> None:
+            if message["type"] == "http.response.body":
+                raise OSError("client disconnected")  # the handler already ran
+
+        with pytest.raises(Exception, match="after response started"):
+            await client.app(_raw_scope("/create", "k1"), receive, failing_send)
+        assert handler.calls["n"] == 1
+
+        retry = client.post("/create", headers={"Idempotency-Key": "k1"}, json={"a": 1})
+        assert retry.headers.get(REPLAYED_HEADER) == "true"  # replayed, not re-executed
+        assert handler.calls["n"] == 1
+
+
+@pytest.mark.anyio
+async def test_delivery_failure_mid_response_does_not_release_the_claim() -> None:
+    handler = _counting_create()
+    with create_test_client(route_handlers=[handler], plugins=[IdempotencyPlugin()]) as client:
+        sent = False
+
+        async def receive() -> Any:
+            nonlocal sent
+            if sent:
+                return {"type": "http.disconnect"}
+            sent = True
+            return {"type": "http.request", "body": b'{"a":1}', "more_body": False}
+
+        async def failing_send(message: Any) -> None:
+            if message["type"] == "http.response.start":
+                raise OSError("client disconnected")
+
+        with pytest.raises(Exception, match="after response started"):
+            await client.app(_raw_scope("/create", "k1"), receive, failing_send)
+
+        retry = client.post("/create", headers={"Idempotency-Key": "k1"}, json={"a": 1})
+        assert retry.status_code == HTTP_409_CONFLICT  # still in flight, not re-run
+        assert handler.calls["n"] == 1
