@@ -1,6 +1,17 @@
 {
-  "plansDirectory": ".agents/specs",
   "permissions": {
     "defaultMode": "plan"
+  },
+  "enabledPlugins": {
+    "flow@flow-marketplace": true
+  },
+  "plansDirectory": ".agents/bundles/specs",
+  "extraKnownMarketplaces": {
+    "flow-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "cofin/flow"
+      }
+    }
   }
 }

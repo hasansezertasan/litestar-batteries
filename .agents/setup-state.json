@@ -1,25 +1,30 @@
 {
   "setup_status": "complete",
   "last_successful_step": "complete",
-  "project_type": "greenfield",
+  "resume_operation": null,
   "root_directory": ".agents",
-  "workflow_revision": "flow-template-v1",
-  "shadcn_official_prompted": false,
-  "mojo_official_prompted": false,
-  "railway_official_prompted": false,
+  "migration_report": ".agents/migration-inventory.json",
+  "migration_approved_at": "2026-10-09T00:00:00Z",
+  "project_type": "brownfield",
+  "workflow_revision": "flow-template-v2",
   "workflow_preferences": {
     "coverage_target": "80%",
     "commit_cadence": "task",
-    "task_summary_mode": "git-notes",
-    "backend_mode": "bd",
-    "ignore_policy": "hybrid: .agents tracked in git; .beads binary Dolt store ignored, .beads/issues.jsonl export git-tracked (no remote)",
+    "ignore_policy": "shared",
     "canonical_commands": {
       "setup": "uv sync",
       "lint": "uv run ruff check .",
       "test": "uv run pytest",
       "typecheck": "uv run mypy && uv run pyright",
       "verify": "uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyright && uv run pytest"
-    }
+    },
+    "local_only_policy": "no tracker remote; Flow never pushes automatically; .agents/transactions/ and .agents/scratch/ git-ignored"
   },
-  "timestamp": "2026-07-23T00:00:00Z"
+  "project_install": {
+    "mode": "skip",
+    "active_host": "claude_code",
+    "canonical_contract_hash": null,
+    "managed_files": []
+  },
+  "timestamp": "2026-10-09T00:00:00Z"
 }

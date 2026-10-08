@@ -224,7 +224,6 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Beads task database: the binary embedded-Dolt store is a local cache (ignored);
-# the JSONL export is the git-tracked source of truth (bd export -> bd import).
-.beads/*
-!.beads/issues.jsonl
+# Flow: crash-recovery journals and task scratch are local state, never history.
+.agents/transactions/
+.agents/scratch/
