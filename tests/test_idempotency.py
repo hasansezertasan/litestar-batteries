@@ -473,6 +473,27 @@ def test_same_key_different_query_string_conflicts() -> None:
 
 
 @pytest.mark.parametrize(
+    ("header", "first_value", "second_value"),
+    [("Content-Type", "application/json", "text/plain"), ("Content-Encoding", "identity", "gzip")],
+)
+def test_representation_headers_are_part_of_request_identity(
+    header: str, first_value: str, second_value: str
+) -> None:
+    handler = _counting_create()
+    with create_test_client(route_handlers=[handler], plugins=[IdempotencyPlugin()]) as client:
+        headers = {"Idempotency-Key": "k", "Content-Type": "application/json", header: first_value}
+        first = client.post("/create", headers=headers, content=b'{"a":1}')
+        assert first.status_code == HTTP_201_CREATED
+        replay = client.post("/create", headers=headers, content=b'{"a":1}')
+        assert replay.headers.get(REPLAYED_HEADER) == "true"
+        headers[header] = second_value
+        mismatch = client.post("/create", headers=headers, content=b'{"a":1}')
+        assert mismatch.status_code == HTTP_422_UNPROCESSABLE_ENTITY
+        assert mismatch.json()["type"].endswith("payload-mismatch")
+        assert handler.calls["n"] == 1
+
+
+@pytest.mark.parametrize(
     ("status", "header", "value"),
     [
         (206, "Content-Range", "bytes 0-11/24"),

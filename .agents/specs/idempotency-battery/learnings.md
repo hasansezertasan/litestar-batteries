@@ -137,3 +137,12 @@ Folded in #1–#5 from the backlog above (on the PR #12 branch):
 - Responses declaring ASGI trailers are uncacheable: forwarding them is safe, but replay currently
   stores neither the trailers flag nor their metadata. Retry the handler instead of replaying a
   metadata-truncated response.
+
+### Body representation fingerprint
+
+- Fingerprint `Content-Type` and `Content-Encoding` together with query bytes and raw body bytes:
+  identical bytes can have different meanings under different representation metadata.
+- Length-frame each component and feed it incrementally to SHA-256, avoiding delimiter collisions
+  and an additional full-body concatenation. Header values are compared as received.
+- Tests verify unchanged representations replay, while changed type/encoding returns 422 without
+  re-running the handler.

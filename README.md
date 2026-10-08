@@ -131,6 +131,9 @@ Behaviour on a configured method carrying the header:
 | no header, or non-configured method | passed through untouched |
 | response is not `2xx`/`4xx` (a redirect or `5xx`) | not cached — a retry re-runs the handler |
 
+The request fingerprint covers the query string, raw body bytes, `Content-Type` and
+`Content-Encoding`. Reusing a key with different body representation metadata also returns `422`.
+
 Only `2xx` and `4xx` responses are cached: they're final and fully replayable from the stored
 status + body + content-type. Redirects are skipped (the `Location` header isn't carried), and `5xx`
 must stay retryable.

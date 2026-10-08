@@ -235,8 +235,17 @@ class IdempotencyMiddleware(ASGIMiddleware):
             # Client went away before we had a full request; don't persist anything.
             await next_app(scope, buffered_receive, send)
             return
-        # Fingerprint the query string too: it can change what the endpoint does.
-        request_hash = hashlib.sha256(scope["query_string"] + b"\0" + body).hexdigest()
+        # Length-frame each component: headers determine how the raw body is interpreted.
+        fingerprint = hashlib.sha256()
+        for component in (
+            scope["query_string"],
+            request.headers.get("content-type", "").encode("latin-1"),
+            request.headers.get("content-encoding", "").encode("latin-1"),
+            body,
+        ):
+            fingerprint.update(len(component).to_bytes(8, "big"))
+            fingerprint.update(component)
+        request_hash = fingerprint.hexdigest()
         scope_value = config.scope(request) if config.scope is not None else ""
         record_key = store_key(request.method, request.url.path, key, scope_value)
 
