@@ -133,6 +133,8 @@ Behaviour on a configured method carrying the header:
 
 The request fingerprint covers the query string, raw body bytes, `Content-Type` and
 `Content-Encoding`. Reusing a key with different body representation metadata also returns `422`.
+After replaying the buffered request body, subsequent ASGI `receive()` calls delegate to the server
+so streaming responses can wait for and observe client disconnects.
 
 Only `2xx` and `4xx` responses are cached: they're final and fully replayable from the stored
 status + body + content-type. Redirects are skipped (the `Location` header isn't carried), and `5xx`

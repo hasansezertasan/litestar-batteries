@@ -146,3 +146,12 @@ Folded in #1–#5 from the backlog above (on the PR #12 branch):
   and an additional full-body concatenation. Header values are compared as received.
 - Tests verify unchanged representations replay, while changed type/encoding returns 422 without
   re-running the handler.
+
+## 2026-10-08 — Post-merge receive delegation (`litestar-batteries-knt`)
+
+- After replaying buffered request events, delegate to the original server `receive()`.
+  Synthesizing endless terminal request events prevents disconnect watchers from blocking and
+  observing `http.disconnect`, potentially creating a hot loop.
+- Regression verifies verbatim body replay, no server read-ahead, post-body blocking, and delivery
+  of the server's disconnect event. It failed before the fix.
+- Canonical verification: 59 tests passed, 97.07% coverage; lint, format and both type checkers clean.
