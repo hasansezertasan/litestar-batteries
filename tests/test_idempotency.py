@@ -1,5 +1,6 @@
 """Tests for the idempotency battery."""
 
+import tracemalloc
 from typing import Any, cast
 
 import msgspec
@@ -206,6 +207,52 @@ def test_oversized_response_is_not_cached() -> None:
         client.post("/big", headers=headers, json={"a": 1})
         client.post("/big", headers=headers, json={"a": 1})
         assert calls["n"] == 2  # too large to cache → re-ran
+
+
+def test_426_is_not_cached_without_upgrade_metadata() -> None:
+    calls = 0
+
+    @post("/upgrade")
+    async def upgrade(data: dict[str, Any]) -> Response[None]:
+        nonlocal calls
+        calls += 1
+        return Response(
+            None, status_code=426, headers={"Upgrade": "HTTP/2", "Connection": "Upgrade"}
+        )
+
+    with create_test_client(route_handlers=[upgrade], plugins=[IdempotencyPlugin()]) as client:
+        for _ in range(2):
+            response = client.post("/upgrade", headers={"Idempotency-Key": "k"}, json={})
+            assert response.status_code == 426
+            assert response.headers["Upgrade"] == "HTTP/2"
+            assert REPLAYED_HEADER not in response.headers
+    assert calls == 2
+
+
+@pytest.mark.anyio
+async def test_oversized_response_chunk_is_not_copied() -> None:
+    chunk = b"x" * (2 * 1024 * 1024)
+    claim = _DictClaim()
+    middleware = IdempotencyMiddleware(IdempotencyConfig(claim=claim, max_body_bytes=8))
+
+    async def receive() -> Any:
+        return {"type": "http.request", "body": b"{}", "more_body": False}
+
+    async def send(message: Any) -> None:
+        pass
+
+    async def downstream(scope: Any, receive: Any, send: Any) -> None:
+        await send({"type": "http.response.start", "status": 201, "headers": []})
+        await send({"type": "http.response.body", "body": chunk, "more_body": False})
+
+    tracemalloc.start()
+    try:
+        await middleware.handle(cast("Any", _raw_scope("/big", "k")), receive, send, downstream)
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert peak < len(chunk) // 2  # the upstream chunk exists before tracing; no full-size copy
+    assert await claim.claim(store_key("POST", "/big", "k"), b"probe", ttl=10) is None
 
 
 def test_same_key_isolated_across_endpoints() -> None:

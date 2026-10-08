@@ -21,6 +21,7 @@ from litestar.status_codes import (
     HTTP_409_CONFLICT,
     HTTP_413_REQUEST_ENTITY_TOO_LARGE,
     HTTP_422_UNPROCESSABLE_ENTITY,
+    HTTP_426_UPGRADE_REQUIRED,
 )
 
 from litestar_batteries.idempotency.models import StoredResponse
@@ -106,7 +107,8 @@ async def _problem(send: Send, status: int, slug: str, title: str, detail: str) 
 
 
 def _is_cacheable(status: int) -> bool:
-    return 200 <= status < 300 or 400 <= status < 500
+    # 426 requires hop-by-hop Upgrade metadata, which replay intentionally omits.
+    return (200 <= status < 300 or 400 <= status < 500) and status != HTTP_426_UPGRADE_REQUIRED
 
 
 def _encode_done(
@@ -307,12 +309,16 @@ class IdempotencyMiddleware(ASGIMiddleware):
             elif message["type"] == "http.response.body":
                 complete = not message.get("more_body", False)
                 if not too_large:
-                    captured_body.extend(message["body"])
-                    if max_bytes is not None and len(captured_body) > max_bytes:
+                    if (
+                        max_bytes is not None
+                        and len(captured_body) + len(message["body"]) > max_bytes
+                    ):
                         # Stop buffering (and drop what we have) so a large or
                         # streaming response can't grow memory without bound.
                         too_large = True
                         captured_body.clear()
+                    else:
+                        captured_body.extend(message["body"])
             await send(message)
 
         try:

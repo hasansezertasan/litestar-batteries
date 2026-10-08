@@ -108,3 +108,12 @@ Folded in #1–#5 from the backlog above (on the PR #12 branch):
 - **Verification:** canonical gate clean; 46 tests passed, 96.61% coverage. Executed Redis Lua scripts
   with fakeredis/Lua to verify stale-owner rejection, TTL preservation and conditional deletion.
   CI passed on Python 3.10 and 3.14; the three new Codex threads were resolved after verification.
+
+### Follow-up response replay review
+
+- Apply the same prospective-size check to response chunks before copying into the capture buffer.
+  A tracemalloc regression test verifies that an oversized single event is not duplicated.
+- Exclude `426 Upgrade Required` from caching: its mandatory hop-by-hop `Upgrade` metadata
+  is intentionally absent from replay headers. Retries reach the handler and retain that metadata.
+- Both regressions failed before their fixes. Canonical verification is clean with 48 tests passing
+  and 96.61% coverage.

@@ -134,6 +134,7 @@ Behaviour on a configured method carrying the header:
 Only `2xx` and `4xx` responses are cached: they're final and fully replayable from the stored
 status + body + content-type. Redirects are skipped (the `Location` header isn't carried), and `5xx`
 must stay retryable.
+`426 Upgrade Required` is also skipped: its required hop-by-hop `Upgrade` header is not replayed.
 
 #### Backing store
 
