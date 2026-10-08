@@ -57,7 +57,7 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyr
 - **Ignore policy (hybrid):** `.agents/` (Flow planning docs, patterns, knowledge, archive) is
   **committed** to git. Under `.beads/`, the binary embedded-Dolt store (`.beads/embeddeddolt`) is
   git-ignored (local cache); the **`.beads/issues.jsonl` export is git-tracked** and is the portable
-  source of truth. `.gitignore` uses `.beads/*` + `!.beads/issues.jsonl`. `CLAUDE.md` is still kept
+  source of truth. `.gitignore` uses `.beads/*` + `!.beads/issues.jsonl`. `AGENTS.md` is still kept
   self-authoritative so the repo builds without any Flow context.
 - Beads (`bd`) uses the embedded Dolt engine; the DB lives at the repo-root `.beads/embeddeddolt` (under
   git worktrees — e.g. Orca — `bd` resolves it to the main checkout's `.beads/`). Flow's Beads→`spec.md`
