@@ -357,6 +357,42 @@ async def test_buffer_request_flags_disconnect() -> None:
     assert disconnected
 
 
+@pytest.mark.anyio
+async def test_buffered_receive_waits_for_server_disconnect_after_body() -> None:
+    body_message = {"type": "http.request", "body": b"body", "more_body": False}
+    disconnect = {"type": "http.disconnect"}
+    server_waiting = asyncio.Event()
+    client_disconnected = asyncio.Event()
+    receives = 0
+
+    async def receive() -> Any:
+        nonlocal receives
+        receives += 1
+        if receives == 1:
+            return body_message
+        server_waiting.set()
+        await client_disconnected.wait()
+        return disconnect
+
+    body, replay, disconnected, oversized = await _buffer_request(receive)
+    assert body == b"body" and not disconnected and not oversized
+    assert await replay() is body_message
+    assert receives == 1  # replaying the body does not read ahead from the server
+
+    async def watch_disconnect() -> Any:
+        return await replay()
+
+    watcher = asyncio.create_task(watch_disconnect())
+    try:
+        await asyncio.wait_for(server_waiting.wait(), 1)
+        assert not watcher.done()  # post-body receive blocks until the server sends an event
+        client_disconnected.set()
+        assert await asyncio.wait_for(watcher, 1) is disconnect
+    finally:
+        watcher.cancel()
+        await asyncio.gather(watcher, return_exceptions=True)
+
+
 def test_scope_isolates_same_key_across_callers() -> None:
     handler = _counting_create()
     config = IdempotencyConfig(scope=lambda r: r.headers.get("X-User", "anon"))
@@ -576,13 +612,13 @@ async def test_buffer_request_does_not_retain_oversized_chunk() -> None:
     )
 
     async def receive() -> Any:
-        return next(chunks)
+        return next(chunks, {"type": "http.disconnect"})
 
     body, replay, disconnected, too_large = await _buffer_request(receive, 8)
     assert too_large and not disconnected
     assert body == b"ab"
     assert (await replay()).get("body") == b"ab"
-    assert (await replay()).get("body") == b""
+    assert (await replay())["type"] == "http.disconnect"
 
 
 @pytest.mark.anyio

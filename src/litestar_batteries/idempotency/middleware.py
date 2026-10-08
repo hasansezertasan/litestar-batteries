@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import msgspec
@@ -70,7 +70,8 @@ async def _buffer_request(
 
     ASGI bodies can only be consumed once, so the middleware buffers the messages
     to fingerprint the body, then hands the downstream app a ``receive`` that
-    replays them verbatim.
+    replays them verbatim, then delegates subsequent calls to the original
+    ``receive`` so downstream apps can observe client disconnects.
     """
     messages: list[ReceiveMessage] = []
     body = bytearray()
@@ -97,8 +98,8 @@ async def _buffer_request(
     async def replay() -> ReceiveMessage:
         try:
             return next(iterator)
-        except StopIteration:  # pragma: no cover - defensive; body is fully buffered above
-            return cast("ReceiveMessage", {"type": "http.request", "body": b"", "more_body": False})
+        except StopIteration:
+            return await receive()
 
     return bytes(body), replay, disconnected, too_large
 
