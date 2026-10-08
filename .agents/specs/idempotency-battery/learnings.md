@@ -88,3 +88,23 @@ Folded in #1–#5 from the backlog above (on the PR #12 branch):
 - **RFC 9457 problem+json** errors (`urn:litestar-batteries:idempotency:*`) + optional `require_key`→400 + key length/charset validation→400.
 - Deferred (unchanged): HMAC fingerprint, lease renewal/fencing, metrics, `no-store` opt-out.
 - Gate: **32 passed, 98% coverage**, ruff/mypy/pyright clean.
+
+## 2026-10-08 — PR #12 review hardening (`litestar-batteries-xup`)
+
+- **Implemented:** query-string fingerprinting and Redis claim retry when an incumbent vanishes
+  (`6f2ef7b`); bounded request buffering, delivery-failure claim preservation and valid 204 replay
+  headers (`8ee9f04`); complete-response-only caching (`456df83`).
+- **Ownership fencing (`502463b`):** each processing sentinel carries a unique owner token.
+  Atomic backends compare the full expected sentinel before setting or deleting; Redis executes
+  those comparisons in Lua. Default-store finalization checks ownership under the worker lock,
+  retaining its documented cross-process best-effort behavior.
+- **Buffer limits:** compare prospective request size before retaining an ASGI message or copying
+  its chunk. A server can supply a chunk larger than the configured cap in one event.
+- **Protocol headers:** default replay now preserves authentication challenges (`WWW-Authenticate`
+  and `Proxy-Authenticate`), `Allow`, and `Retry-After`; tests cover 401, 407, 405 and 429.
+- **Contract:** custom `AtomicClaim.set` / `delete` implementations now require `expected` bytes
+  and return a success boolean. Redis clients must support `eval`. Fencing prevents a stale owner
+  from modifying newer state; lease renewal remains deferred, so `lock_ttl` must exceed handler runtime.
+- **Verification:** canonical gate clean; 46 tests passed, 96.61% coverage. Executed Redis Lua scripts
+  with fakeredis/Lua to verify stale-owner rejection, TTL preservation and conditional deletion.
+  CI passed on Python 3.10 and 3.14; the three new Codex threads were resolved after verification.
