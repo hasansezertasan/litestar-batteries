@@ -324,7 +324,7 @@ class IdempotencyMiddleware(ASGIMiddleware):
         # Cache only final, faithfully-replayable responses: 2xx and 4xx. Redirects
         # (3xx), 5xx, a never-sent response (status 0), and oversized/streaming
         # bodies are not cached, so a retry re-runs.
-        if _is_cacheable(status) and not too_large:
+        if _is_cacheable(status) and complete and not too_large:
             await persist(_encode_done(request_hash, status, captured_headers, captured_body))
         else:
             await drop()  # not cached → let a retry re-run
