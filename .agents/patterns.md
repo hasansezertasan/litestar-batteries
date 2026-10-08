@@ -26,7 +26,7 @@
 - **No auto-sync from Beads → spec.md here:** `spec.md` markers are updated manually via `/flow:sync` (Flow's Beads→spec auto-sync is not relied upon in this repo). The committed `.beads/issues.jsonl` ledger — not the ignored `.beads/embeddeddolt` cache — is the **source of truth**.
 - **`uv run "cmd --flag"` fails:** pass args unquoted (`uv run cmd --flag`); a single quoted string is treated as one executable name.
 - **PyYAML reads workflow `on:` as boolean `True`** (YAML 1.1); GitHub's parser is fine. Don't "fix" it.
-- **Ignore policy is hybrid:** `.agents/` (docs/patterns/knowledge/archive) is committed to git. Under `.beads/`, the binary embedded-Dolt store is git-ignored (local cache) but the `.beads/issues.jsonl` export **is** git-tracked (`.beads/*` + `!.beads/issues.jsonl`) and is the portable source of truth — no Dolt remote. Keep `CLAUDE.md` self-authoritative anyway so the repo builds/verifies without any Flow context.
+- **Ignore policy is hybrid:** `.agents/` (docs/patterns/knowledge/archive) is committed to git. Under `.beads/`, the binary embedded-Dolt store is git-ignored (local cache) but the `.beads/issues.jsonl` export **is** git-tracked (`.beads/*` + `!.beads/issues.jsonl`) and is the portable source of truth — no Dolt remote. Keep `AGENTS.md` self-authoritative anyway so the repo builds/verifies without any Flow context.
 - **Python 3.10 is in the CI matrix → no 3.11+ stdlib APIs in `src`:** typers pin `pythonVersion = "3.10"`
   and tests run on 3.10, but neither necessarily flags a 3.11-only *runtime* call. Prefer the
   3.10-compatible form — e.g. the `asyncio.timeout()` context manager is 3.11+, so bound awaits with
