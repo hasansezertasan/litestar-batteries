@@ -68,11 +68,16 @@ class RedisAtomicClaim:
         self._prefix = prefix
 
     async def claim(self, key: str, value: bytes, *, ttl: int) -> bytes | None:
-        was_set = await self._redis.set(self._prefix + key, value, nx=True, ex=ttl)
-        if was_set:
-            return None
-        # Lost the race (or key already present); return the incumbent record.
-        return await self._redis.get(self._prefix + key)
+        while True:
+            was_set = await self._redis.set(self._prefix + key, value, nx=True, ex=ttl)
+            if was_set:
+                return None
+            # Lost the race (or key already present); return the incumbent record.
+            incumbent = await self._redis.get(self._prefix + key)
+            if incumbent is not None:
+                return incumbent
+            # The incumbent expired or was released between SET NX and GET; claiming
+            # again (rather than returning None) keeps the reservation atomic.
 
     async def set(self, key: str, value: bytes, *, ttl: int) -> None:
         await self._redis.set(self._prefix + key, value, ex=ttl)

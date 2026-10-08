@@ -211,7 +211,8 @@ IdempotencyConfig(scope=lambda request: request.headers.get("X-Tenant-Id", ""))
 | `claim` | `AtomicClaim \| None` | `None` | Atomic cross-process reservation backend (e.g. `RedisAtomicClaim`). |
 
 `replay_headers` defaults to `content-type`, `content-language`, `content-encoding`, `cache-control`,
-`etag`, `expires`, `last-modified`, `location` — volatile/sensitive headers (`set-cookie`,
+`etag`, `expires`, `last-modified`, `location`, `www-authenticate`, `allow`, `retry-after` (the last three are
+required by cached `401`/`405`/`429` responses) — volatile/sensitive headers (`set-cookie`,
 `authorization`, hop-by-hop) are intentionally excluded from replays.
 
 ## Development

@@ -163,7 +163,8 @@ class IdempotencyMiddleware(ASGIMiddleware):
             # Client went away before we had a full request; don't persist anything.
             await next_app(scope, buffered_receive, send)
             return
-        request_hash = hashlib.sha256(body).hexdigest()
+        # Fingerprint the query string too: it can change what the endpoint does.
+        request_hash = hashlib.sha256(scope["query_string"] + b"\0" + body).hexdigest()
         scope_value = config.scope(request) if config.scope is not None else ""
         record_key = store_key(request.method, request.url.path, key, scope_value)
 

@@ -377,3 +377,50 @@ async def test_redis_atomic_claim() -> None:
     assert redis.store["idem:k"] == b"done"
     await claim.delete("k")
     assert "idem:k" not in redis.store
+
+
+def test_same_key_different_query_string_conflicts() -> None:
+    handler = _counting_create()
+    with create_test_client(route_handlers=[handler], plugins=[IdempotencyPlugin()]) as client:
+        headers = {"Idempotency-Key": "k1"}
+        client.post("/create?action=create", headers=headers, json={"a": 1})
+        other = client.post("/create?action=cancel", headers=headers, json={"a": 1})
+        assert other.status_code == HTTP_422_UNPROCESSABLE_ENTITY
+        assert handler.calls["n"] == 1
+
+
+def test_replays_required_4xx_headers() -> None:
+    @post("/limited")
+    async def limited(data: dict[str, Any]) -> Response[dict[str, bool]]:
+        return Response({"ok": False}, status_code=429, headers={"Retry-After": "30"})
+
+    with create_test_client(route_handlers=[limited], plugins=[IdempotencyPlugin()]) as client:
+        headers = {"Idempotency-Key": "k1"}
+        client.post("/limited", headers=headers, json={"a": 1})
+        replay = client.post("/limited", headers=headers, json={"a": 1})
+        assert replay.headers.get(REPLAYED_HEADER) == "true"
+        assert replay.headers.get("Retry-After") == "30"
+
+
+@pytest.mark.anyio
+async def test_redis_claim_retries_when_incumbent_vanishes() -> None:
+    class _Vanishing(_FakeRedis):
+        """First GET after a lost SET NX finds the incumbent already gone."""
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.store["idempotency:k"] = b"incumbent"
+            self.gets = 0
+
+        async def get(self, name: str) -> bytes | None:
+            self.gets += 1
+            if self.gets == 1:
+                self.store.pop(name, None)  # incumbent released before our GET
+                return None
+            return await super().get(name)
+
+    redis = _Vanishing()
+    claim = RedisAtomicClaim(redis)
+    assert await claim.claim("k", b"mine", ttl=10) is None  # re-acquired, not a phantom win
+    assert redis.store["idempotency:k"] == b"mine"
+    assert await claim.claim("k", b"other", ttl=10) == b"mine"

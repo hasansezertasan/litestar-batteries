@@ -31,6 +31,10 @@ DEFAULT_REPLAY_HEADERS = frozenset(
         "expires",
         "last-modified",
         "location",
+        # Required by the cached 4xx statuses: 401, 405 and 429 respectively.
+        "www-authenticate",
+        "allow",
+        "retry-after",
     }
 )
 """Response headers stored and replayed by default. Volatile/sensitive headers
