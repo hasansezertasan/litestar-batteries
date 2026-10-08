@@ -1,0 +1,185 @@
+{
+  "contract": "setup-migration-v1",
+  "version": 1,
+  "items": [
+    {
+      "source": ".agents/archive/health-battery",
+      "destination": ".agents/bundles/log.md",
+      "disposition": "remove_after_verify",
+      "note": "completed flow: spec/summary synthesized into knowledge chapters, logged once in log.md; learnings.md -> knowledge/patterns/<topic>.md"
+    },
+    {
+      "source": ".agents/archive/health-timeout",
+      "destination": ".agents/bundles/log.md",
+      "disposition": "remove_after_verify",
+      "note": "as above"
+    },
+    {
+      "source": ".agents/archive/project-foundation",
+      "destination": ".agents/bundles/log.md",
+      "disposition": "remove_after_verify",
+      "note": "as above; prd.md + spec-ci-pipeline.md synthesized, not kept"
+    },
+    {
+      "source": ".agents/beads.json",
+      "destination": ".agents/setup-state.json",
+      "disposition": "preserve_local_policy",
+      "note": "local-only / no-push policy kept as workflow_preferences; bd config dropped"
+    },
+    {
+      "source": ".agents/code-styleguides",
+      "destination": ".agents/bundles/knowledge/code-styleguides",
+      "disposition": "migrate"
+    },
+    {
+      "source": ".agents/flows.md",
+      "destination": ".agents/bundles/index.md",
+      "disposition": "synthesize",
+      "note": "flow registry folded into bundle index + log.md"
+    },
+    {
+      "source": ".agents/index.md",
+      "destination": ".agents/bundles/index.md",
+      "disposition": "synthesize",
+      "note": "Beads lines dropped; okf_version 0.2"
+    },
+    {
+      "source": ".agents/knowledge",
+      "destination": ".agents/bundles/knowledge",
+      "disposition": "synthesize",
+      "note": "architecture.md, conventions.md, index.md keep relative paths; Beads sections in conventions.md rewritten"
+    },
+    {
+      "source": ".agents/patterns.md",
+      "destination": ".agents/bundles/knowledge/patterns",
+      "disposition": "synthesize",
+      "note": "split into evidence-backed patterns/<topic>.md chapters; Beads bullets dropped"
+    },
+    {
+      "source": ".agents/product-guidelines.md",
+      "destination": ".agents/bundles/product/product-guidelines.md",
+      "disposition": "migrate"
+    },
+    {
+      "source": ".agents/product.md",
+      "destination": ".agents/bundles/product/product.md",
+      "disposition": "migrate",
+      "note": "add type: Guide + truth markers"
+    },
+    {
+      "source": ".agents/setup-state.json",
+      "destination": ".agents/setup-state.json",
+      "disposition": "synthesize",
+      "note": "backend_mode/beads fields removed; flow-template-v2; migration_report recorded"
+    },
+    {
+      "source": ".agents/specs/idempotency-battery",
+      "destination": ".agents/bundles/log.md",
+      "disposition": "remove_after_verify",
+      "note": "state completed, all 4 tasks closed, merged in #12/#25: synthesized + logged like archived flows; learnings.md -> knowledge/patterns"
+    },
+    {
+      "source": ".agents/tech-stack.md",
+      "destination": ".agents/bundles/product/tech-stack.md",
+      "disposition": "migrate",
+      "note": "add type: Guide + truth markers"
+    },
+    {
+      "source": ".agents/workflow.md",
+      "destination": ".agents/bundles/knowledge/workflow.md",
+      "disposition": "synthesize",
+      "note": "truth block kept, rest replaced by current template (Beads Integration section removed)"
+    },
+    {
+      "source": ".beads/issues.jsonl",
+      "destination": ".agents/bundles/log.md",
+      "disposition": "remove_after_verify",
+      "note": "36 records, all closed; per-epic commit evidence + close reasons logged; standalone items (m6n LICENSE, p33 README, 9ke hardening, knt/xup fixes) logged too"
+    },
+    {
+      "source": ".claude/settings.json",
+      "destination": ".claude/settings.json",
+      "disposition": "synthesize",
+      "note": "plansDirectory .agents/specs -> .agents/bundles/specs"
+    },
+    {
+      "source": ".gitignore",
+      "destination": ".gitignore",
+      "disposition": "synthesize",
+      "note": "remove .beads/* + !.beads/issues.jsonl block (lines ~227-230); add transactions/ + scratch/ excludes"
+    },
+    {
+      "source": "AGENTS.md",
+      "destination": "AGENTS.md",
+      "disposition": "synthesize",
+      "note": "Source of Truth + Task Memory sections rewritten for OKF bundles; no bd"
+    }
+  ],
+  "semantic_mappings": {
+    "priority": {
+      "status": "mapped",
+      "detail": "all items closed; Beads priorities (1/2/4) recorded in log.md entries only \u2014 no live tasks need P0-P4 values"
+    },
+    "dependencies": {
+      "status": "mapped",
+      "detail": "epic/task DAGs fully closed; ordering preserved in log.md history, no live task dependencies"
+    },
+    "claims": {
+      "status": "mapped",
+      "detail": "no open claims (only va8 had assignee, closed)"
+    },
+    "blockers": {
+      "status": "mapped",
+      "detail": "no blocked items"
+    },
+    "notes": {
+      "status": "mapped",
+      "detail": "epic notes (52a, axm, 1yk, 2tg, va8) synthesized into knowledge chapters where still true; rest dropped as stale history"
+    },
+    "commit_evidence": {
+      "status": "mapped",
+      "detail": "close_reason commit SHAs (e.g. a787106, 7e39a42, 5f19232, f4dc239, 502463b) recorded in log.md"
+    },
+    "history": {
+      "status": "mapped",
+      "detail": "4 completed flows + standalone items synthesized into knowledge and logged once in log.md; archive tree removed"
+    },
+    "local_only_policy": {
+      "status": "mapped",
+      "detail": "no remote / no auto-push retained; bundles committed to git under shared policy, transactions/ and scratch/ git-excluded"
+    }
+  },
+  "knowledge_paths": [
+    {
+      "source_root": ".agents/knowledge",
+      "destination_root": ".agents/bundles/knowledge",
+      "relative_paths": [
+        "architecture.md",
+        "conventions.md",
+        "index.md"
+      ]
+    },
+    {
+      "source_root": ".agents/code-styleguides",
+      "destination_root": ".agents/bundles/knowledge/code-styleguides",
+      "relative_paths": [
+        "litestar.md",
+        "python.md",
+        "testing.md"
+      ]
+    }
+  ],
+  "approval": {
+    "approved_by": "hasansezertasan",
+    "approved_at": "2026-10-09T00:00:00Z"
+  },
+  "progress": {
+    "last_successful_step": "complete",
+    "resume_operation": null
+  },
+  "cleanup": {
+    "approved_by": "hasansezertasan",
+    "approved_at": "2026-10-09T00:00:00Z",
+    "removed_tracked_files": 31
+  }
+}
