@@ -152,139 +152,152 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="30">
 </span><span data-line="31"><span class="sd">        Return ``None`` if the caller won the reservation (key was absent), else</span>
 </span><span data-line="32"><span class="sd">        the bytes already stored under ``key`` (another request holds it).</span>
-</span><span data-line="33"><span class="sd">        &quot;&quot;&quot;</span>
-</span><span data-line="34">        <span class="c1"># pylint: disable-next=unnecessary-ellipsis</span>
-</span><span data-line="35">        <span class="o">...</span>  <span class="c1"># pragma: no cover - protocol stub, never called directly.</span></div>
+</span><span data-line="33">
+</span><span data-line="34"><span class="sd">        Raises:</span>
+</span><span data-line="35"><span class="sd">            NotImplementedError: Protocol stub; concrete backends override this.</span>
+</span><span data-line="36"><span class="sd">        &quot;&quot;&quot;</span>
+</span><span data-line="37">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>  <span class="c1"># pragma: no cover - protocol stub.</span></div>
 
-</span><span data-line="36">
+</span><span data-line="38">
 <div class="viewcode-block" id="AtomicClaim.set">
 <a class="viewcode-back" href="../../../modules.html#litestar_batteries.idempotency.claims.AtomicClaim.set">[docs]</a>
-</span><span data-line="37">    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">expected</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-</span><span data-line="38"><span class="w">        </span><span class="sd">&quot;&quot;&quot;Atomically replace ``key`` only if it holds ``expected``; return success.&quot;&quot;&quot;</span>
-</span><span data-line="39">        <span class="c1"># pylint: disable-next=unnecessary-ellipsis</span>
-</span><span data-line="40">        <span class="o">...</span>  <span class="c1"># pragma: no cover - protocol stub, never called directly.</span></div>
-
+</span><span data-line="39">    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">expected</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="40"><span class="w">        </span><span class="sd">&quot;&quot;&quot;Atomically replace ``key`` only if it holds ``expected``; return success.</span>
 </span><span data-line="41">
-<div class="viewcode-block" id="AtomicClaim.delete">
-<a class="viewcode-back" href="../../../modules.html#litestar_batteries.idempotency.claims.AtomicClaim.delete">[docs]</a>
-</span><span data-line="42">    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">expected</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-</span><span data-line="43"><span class="w">        </span><span class="sd">&quot;&quot;&quot;Atomically remove ``key`` only if it holds ``expected``; return success.&quot;&quot;&quot;</span>
-</span><span data-line="44">        <span class="c1"># pylint: disable-next=unnecessary-ellipsis</span>
-</span><span data-line="45">        <span class="o">...</span>  <span class="c1"># pragma: no cover - protocol stub, never called directly.</span></div>
-</div>
+</span><span data-line="42"><span class="sd">        Raises:</span>
+</span><span data-line="43"><span class="sd">            NotImplementedError: Protocol stub; concrete backends override this.</span>
+</span><span data-line="44"><span class="sd">        &quot;&quot;&quot;</span>
+</span><span data-line="45">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>  <span class="c1"># pragma: no cover - protocol stub.</span></div>
 
 </span><span data-line="46">
-</span><span data-line="47">
-</span><span data-line="48"><span class="k">class</span><span class="w"> </span><span class="nc">_RedisClient</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
-</span><span data-line="49"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Structural type for the subset of ``redis.asyncio.Redis`` we use.&quot;&quot;&quot;</span>
-</span><span data-line="50">
-</span><span data-line="51">    <span class="k">def</span><span class="w"> </span><span class="nf">set</span><span class="p">(</span>
-</span><span data-line="52">        <span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">nx</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span> <span class="n">ex</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="o">...</span>
-</span><span data-line="53">    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Awaitable</span><span class="p">[</span><span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span> <span class="o">...</span>  <span class="c1"># pragma: no cover - protocol stub.</span>
-</span><span data-line="54">    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Awaitable</span><span class="p">[</span><span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span> <span class="o">...</span>  <span class="c1"># pragma: no cover</span>
-</span><span data-line="55">    <span class="k">def</span><span class="w"> </span><span class="nf">eval</span><span class="p">(</span>
-</span><span data-line="56">        <span class="bp">self</span><span class="p">,</span> <span class="n">script</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">numkeys</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="nb">int</span>
-</span><span data-line="57">    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Awaitable</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span> <span class="o">...</span>  <span class="c1"># pragma: no cover - protocol stub.</span>
+<div class="viewcode-block" id="AtomicClaim.delete">
+<a class="viewcode-back" href="../../../modules.html#litestar_batteries.idempotency.claims.AtomicClaim.delete">[docs]</a>
+</span><span data-line="47">    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">expected</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="48"><span class="w">        </span><span class="sd">&quot;&quot;&quot;Atomically remove ``key`` only if it holds ``expected``; return success.</span>
+</span><span data-line="49">
+</span><span data-line="50"><span class="sd">        Raises:</span>
+</span><span data-line="51"><span class="sd">            NotImplementedError: Protocol stub; concrete backends override this.</span>
+</span><span data-line="52"><span class="sd">        &quot;&quot;&quot;</span>
+</span><span data-line="53">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>  <span class="c1"># pragma: no cover - protocol stub.</span></div>
+</div>
+
+</span><span data-line="54">
+</span><span data-line="55">
+</span><span data-line="56"><span class="k">class</span><span class="w"> </span><span class="nc">_RedisClient</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+</span><span data-line="57"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Structural type for the subset of ``redis.asyncio.Redis`` we use.&quot;&quot;&quot;</span>
 </span><span data-line="58">
-</span><span data-line="59">
-</span><span data-line="60"><span class="n">_SET_IF_OWNER</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
-</span><span data-line="61"><span class="s2">if redis.call(&#39;GET&#39;, KEYS[1]) == ARGV[1] then</span>
-</span><span data-line="62"><span class="s2">    redis.call(&#39;SET&#39;, KEYS[1], ARGV[2], &#39;EX&#39;, ARGV[3])</span>
-</span><span data-line="63"><span class="s2">    return 1</span>
-</span><span data-line="64"><span class="s2">end</span>
-</span><span data-line="65"><span class="s2">return 0</span>
-</span><span data-line="66"><span class="s2">&quot;&quot;&quot;</span>
-</span><span data-line="67"><span class="n">_DELETE_IF_OWNER</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
-</span><span data-line="68"><span class="s2">if redis.call(&#39;GET&#39;, KEYS[1]) == ARGV[1] then</span>
-</span><span data-line="69"><span class="s2">    return redis.call(&#39;DEL&#39;, KEYS[1])</span>
-</span><span data-line="70"><span class="s2">end</span>
-</span><span data-line="71"><span class="s2">return 0</span>
-</span><span data-line="72"><span class="s2">&quot;&quot;&quot;</span>
-</span><span data-line="73">
-</span><span data-line="74">
+</span><span data-line="59">    <span class="k">def</span><span class="w"> </span><span class="nf">set</span><span class="p">(</span>
+</span><span data-line="60">        <span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">nx</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span> <span class="n">ex</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="o">...</span>
+</span><span data-line="61">    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Awaitable</span><span class="p">[</span><span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+</span><span data-line="62">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>  <span class="c1"># pragma: no cover - protocol stub. - protocol stub.</span>
+</span><span data-line="63">
+</span><span data-line="64">    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Awaitable</span><span class="p">[</span><span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+</span><span data-line="65">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>  <span class="c1"># pragma: no cover - protocol stub.</span>
+</span><span data-line="66">
+</span><span data-line="67">    <span class="k">def</span><span class="w"> </span><span class="nf">eval</span><span class="p">(</span>
+</span><span data-line="68">        <span class="bp">self</span><span class="p">,</span> <span class="n">script</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">numkeys</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="nb">int</span>
+</span><span data-line="69">    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Awaitable</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+</span><span data-line="70">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>  <span class="c1"># pragma: no cover - protocol stub.</span>
+</span><span data-line="71">
+</span><span data-line="72">
+</span><span data-line="73"><span class="n">_SET_IF_OWNER</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+</span><span data-line="74"><span class="s2">if redis.call(&#39;GET&#39;, KEYS[1]) == ARGV[1] then</span>
+</span><span data-line="75"><span class="s2">    redis.call(&#39;SET&#39;, KEYS[1], ARGV[2], &#39;EX&#39;, ARGV[3])</span>
+</span><span data-line="76"><span class="s2">    return 1</span>
+</span><span data-line="77"><span class="s2">end</span>
+</span><span data-line="78"><span class="s2">return 0</span>
+</span><span data-line="79"><span class="s2">&quot;&quot;&quot;</span>
+</span><span data-line="80"><span class="n">_DELETE_IF_OWNER</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+</span><span data-line="81"><span class="s2">if redis.call(&#39;GET&#39;, KEYS[1]) == ARGV[1] then</span>
+</span><span data-line="82"><span class="s2">    return redis.call(&#39;DEL&#39;, KEYS[1])</span>
+</span><span data-line="83"><span class="s2">end</span>
+</span><span data-line="84"><span class="s2">return 0</span>
+</span><span data-line="85"><span class="s2">&quot;&quot;&quot;</span>
+</span><span data-line="86">
+</span><span data-line="87">
 <div class="viewcode-block" id="RedisAtomicClaim">
 <a class="viewcode-back" href="../../../modules.html#litestar_batteries.idempotency.claims.RedisAtomicClaim">[docs]</a>
-</span><span data-line="75"><span class="k">class</span><span class="w"> </span><span class="nc">RedisAtomicClaim</span><span class="p">:</span>
-</span><span data-line="76"><span class="w">    </span><span class="sd">&quot;&quot;&quot;:class:`AtomicClaim` backed by a ``redis.asyncio.Redis`` client.</span>
-</span><span data-line="77">
-</span><span data-line="78"><span class="sd">    ``redis`` is duck-typed (no hard dependency); any client exposing</span>
-</span><span data-line="79"><span class="sd">    ``set(name, value, nx=, ex=)`` / ``get`` / ``eval`` works. Finalization uses</span>
-</span><span data-line="80"><span class="sd">    atomic Lua comparisons against the unique reservation, so an expired owner</span>
-</span><span data-line="81"><span class="sd">    cannot change a newer record::</span>
-</span><span data-line="82">
-</span><span data-line="83"><span class="sd">        from redis.asyncio import Redis</span>
-</span><span data-line="84"><span class="sd">        from litestar_batteries import (</span>
-</span><span data-line="85"><span class="sd">            IdempotencyConfig,</span>
-</span><span data-line="86"><span class="sd">            IdempotencyPlugin,</span>
-</span><span data-line="87"><span class="sd">            RedisAtomicClaim,</span>
-</span><span data-line="88"><span class="sd">        )</span>
-</span><span data-line="89">
-</span><span data-line="90"><span class="sd">        claim = RedisAtomicClaim(Redis.from_url(&quot;redis://localhost:6379&quot;))</span>
-</span><span data-line="91"><span class="sd">        plugin = IdempotencyPlugin(IdempotencyConfig(claim=claim))</span>
-</span><span data-line="92"><span class="sd">    &quot;&quot;&quot;</span>
-</span><span data-line="93">
-</span><span data-line="94">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">redis</span><span class="p">:</span> <span class="n">_RedisClient</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;idempotency:&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="95"><span class="w">        </span><span class="sd">&quot;&quot;&quot;Store the Redis client and key prefix.</span>
-</span><span data-line="96">
-</span><span data-line="97"><span class="sd">        Args:</span>
-</span><span data-line="98"><span class="sd">            redis: The ``redis.asyncio``-compatible client to run against.</span>
-</span><span data-line="99"><span class="sd">            prefix: Key prefix namespacing every reservation and record.</span>
-</span><span data-line="100"><span class="sd">        &quot;&quot;&quot;</span>
-</span><span data-line="101">        <span class="bp">self</span><span class="o">.</span><span class="n">_redis</span><span class="p">:</span> <span class="n">_RedisClient</span> <span class="o">=</span> <span class="n">redis</span>
-</span><span data-line="102">        <span class="bp">self</span><span class="o">.</span><span class="n">_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">prefix</span>
-</span><span data-line="103">
+</span><span data-line="88"><span class="k">class</span><span class="w"> </span><span class="nc">RedisAtomicClaim</span><span class="p">:</span>
+</span><span data-line="89"><span class="w">    </span><span class="sd">&quot;&quot;&quot;:class:`AtomicClaim` backed by a ``redis.asyncio.Redis`` client.</span>
+</span><span data-line="90">
+</span><span data-line="91"><span class="sd">    ``redis`` is duck-typed (no hard dependency); any client exposing</span>
+</span><span data-line="92"><span class="sd">    ``set(name, value, nx=, ex=)`` / ``get`` / ``eval`` works. Finalization uses</span>
+</span><span data-line="93"><span class="sd">    atomic Lua comparisons against the unique reservation, so an expired owner</span>
+</span><span data-line="94"><span class="sd">    cannot change a newer record::</span>
+</span><span data-line="95">
+</span><span data-line="96"><span class="sd">        from redis.asyncio import Redis</span>
+</span><span data-line="97"><span class="sd">        from litestar_batteries import (</span>
+</span><span data-line="98"><span class="sd">            IdempotencyConfig,</span>
+</span><span data-line="99"><span class="sd">            IdempotencyPlugin,</span>
+</span><span data-line="100"><span class="sd">            RedisAtomicClaim,</span>
+</span><span data-line="101"><span class="sd">        )</span>
+</span><span data-line="102">
+</span><span data-line="103"><span class="sd">        claim = RedisAtomicClaim(Redis.from_url(&quot;redis://localhost:6379&quot;))</span>
+</span><span data-line="104"><span class="sd">        plugin = IdempotencyPlugin(IdempotencyConfig(claim=claim))</span>
+</span><span data-line="105"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="106">
+</span><span data-line="107">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">redis</span><span class="p">:</span> <span class="n">_RedisClient</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;idempotency:&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="108"><span class="w">        </span><span class="sd">&quot;&quot;&quot;Store the Redis client and key prefix.</span>
+</span><span data-line="109">
+</span><span data-line="110"><span class="sd">        Args:</span>
+</span><span data-line="111"><span class="sd">            redis: The ``redis.asyncio``-compatible client to run against.</span>
+</span><span data-line="112"><span class="sd">            prefix: Key prefix namespacing every reservation and record.</span>
+</span><span data-line="113"><span class="sd">        &quot;&quot;&quot;</span>
+</span><span data-line="114">        <span class="bp">self</span><span class="o">.</span><span class="n">_redis</span><span class="p">:</span> <span class="n">_RedisClient</span> <span class="o">=</span> <span class="n">redis</span>
+</span><span data-line="115">        <span class="bp">self</span><span class="o">.</span><span class="n">_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">prefix</span>
+</span><span data-line="116">
 <div class="viewcode-block" id="RedisAtomicClaim.claim">
 <a class="viewcode-back" href="../../../modules.html#litestar_batteries.idempotency.claims.RedisAtomicClaim.claim">[docs]</a>
-</span><span data-line="104">    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">claim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="105"><span class="w">        </span><span class="sd">&quot;&quot;&quot;Reserve ``key`` via ``SET NX``; return the incumbent on a lost race.</span>
-</span><span data-line="106">
-</span><span data-line="107"><span class="sd">        Args:</span>
-</span><span data-line="108"><span class="sd">            key: The idempotency record key to reserve.</span>
-</span><span data-line="109"><span class="sd">            value: The reservation payload (unique ownership token).</span>
-</span><span data-line="110"><span class="sd">            ttl: Reservation time-to-live in seconds.</span>
-</span><span data-line="111">
-</span><span data-line="112"><span class="sd">        Returns:</span>
-</span><span data-line="113"><span class="sd">            ``None`` when this caller won the reservation, else the bytes</span>
-</span><span data-line="114"><span class="sd">            already stored under ``key``.</span>
-</span><span data-line="115"><span class="sd">        &quot;&quot;&quot;</span>
-</span><span data-line="116">        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-</span><span data-line="117">            <span class="n">was_set</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_redis</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_prefix</span> <span class="o">+</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nx</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ex</span><span class="o">=</span><span class="n">ttl</span><span class="p">)</span>
-</span><span data-line="118">            <span class="k">if</span> <span class="n">was_set</span><span class="p">:</span>
-</span><span data-line="119">                <span class="k">return</span> <span class="kc">None</span>
-</span><span data-line="120">            <span class="c1"># Lost the race (or key already present); return the incumbent record.</span>
-</span><span data-line="121">            <span class="n">incumbent</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_redis</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_prefix</span> <span class="o">+</span> <span class="n">key</span><span class="p">)</span>
-</span><span data-line="122">            <span class="k">if</span> <span class="n">incumbent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="123">                <span class="k">return</span> <span class="n">incumbent</span></div>
+</span><span data-line="117">    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">claim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="118"><span class="w">        </span><span class="sd">&quot;&quot;&quot;Reserve ``key`` via ``SET NX``; return the incumbent on a lost race.</span>
+</span><span data-line="119">
+</span><span data-line="120"><span class="sd">        Args:</span>
+</span><span data-line="121"><span class="sd">            key: The idempotency record key to reserve.</span>
+</span><span data-line="122"><span class="sd">            value: The reservation payload (unique ownership token).</span>
+</span><span data-line="123"><span class="sd">            ttl: Reservation time-to-live in seconds.</span>
+</span><span data-line="124">
+</span><span data-line="125"><span class="sd">        Returns:</span>
+</span><span data-line="126"><span class="sd">            ``None`` when this caller won the reservation, else the bytes</span>
+</span><span data-line="127"><span class="sd">            already stored under ``key``.</span>
+</span><span data-line="128"><span class="sd">        &quot;&quot;&quot;</span>
+</span><span data-line="129">        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+</span><span data-line="130">            <span class="n">was_set</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_redis</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_prefix</span> <span class="o">+</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nx</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ex</span><span class="o">=</span><span class="n">ttl</span><span class="p">)</span>
+</span><span data-line="131">            <span class="k">if</span> <span class="n">was_set</span><span class="p">:</span>
+</span><span data-line="132">                <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="133">            <span class="c1"># Lost the race (or key already present); return the incumbent record.</span>
+</span><span data-line="134">            <span class="n">incumbent</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_redis</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_prefix</span> <span class="o">+</span> <span class="n">key</span><span class="p">)</span>
+</span><span data-line="135">            <span class="k">if</span> <span class="n">incumbent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="136">                <span class="k">return</span> <span class="n">incumbent</span></div>
 
-</span><span data-line="124">            <span class="c1"># The incumbent expired or was released between SET NX and GET; claiming</span>
-</span><span data-line="125">            <span class="c1"># again (rather than returning None) keeps the reservation atomic.</span>
-</span><span data-line="126">
+</span><span data-line="137">            <span class="c1"># The incumbent expired or was released between SET NX and GET; claiming</span>
+</span><span data-line="138">            <span class="c1"># again (rather than returning None) keeps the reservation atomic.</span>
+</span><span data-line="139">
 <div class="viewcode-block" id="RedisAtomicClaim.set">
 <a class="viewcode-back" href="../../../modules.html#litestar_batteries.idempotency.claims.RedisAtomicClaim.set">[docs]</a>
-</span><span data-line="127">    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">expected</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-</span><span data-line="128"><span class="w">        </span><span class="sd">&quot;&quot;&quot;Persist a completed response only while the reservation is still owned.</span>
-</span><span data-line="129">
-</span><span data-line="130"><span class="sd">        Returns:</span>
-</span><span data-line="131"><span class="sd">            Whether the stored value still held ``expected`` and was replaced.</span>
-</span><span data-line="132"><span class="sd">        &quot;&quot;&quot;</span>
-</span><span data-line="133">        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span>
-</span><span data-line="134">            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_redis</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span>
-</span><span data-line="135">                <span class="n">_SET_IF_OWNER</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefix</span> <span class="o">+</span> <span class="n">key</span><span class="p">,</span> <span class="n">expected</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">ttl</span>
-</span><span data-line="136">            <span class="p">)</span>
-</span><span data-line="137">        <span class="p">)</span></div>
+</span><span data-line="140">    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">expected</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="141"><span class="w">        </span><span class="sd">&quot;&quot;&quot;Persist a completed response only while the reservation is still owned.</span>
+</span><span data-line="142">
+</span><span data-line="143"><span class="sd">        Returns:</span>
+</span><span data-line="144"><span class="sd">            Whether the stored value still held ``expected`` and was replaced.</span>
+</span><span data-line="145"><span class="sd">        &quot;&quot;&quot;</span>
+</span><span data-line="146">        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span>
+</span><span data-line="147">            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_redis</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span>
+</span><span data-line="148">                <span class="n">_SET_IF_OWNER</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefix</span> <span class="o">+</span> <span class="n">key</span><span class="p">,</span> <span class="n">expected</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">ttl</span>
+</span><span data-line="149">            <span class="p">)</span>
+</span><span data-line="150">        <span class="p">)</span></div>
 
-</span><span data-line="138">
+</span><span data-line="151">
 <div class="viewcode-block" id="RedisAtomicClaim.delete">
 <a class="viewcode-back" href="../../../modules.html#litestar_batteries.idempotency.claims.RedisAtomicClaim.delete">[docs]</a>
-</span><span data-line="139">    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">expected</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-</span><span data-line="140"><span class="w">        </span><span class="sd">&quot;&quot;&quot;Release a reservation only while it is still owned.</span>
-</span><span data-line="141">
-</span><span data-line="142"><span class="sd">        Returns:</span>
-</span><span data-line="143"><span class="sd">            Whether the stored value still held ``expected`` and was removed.</span>
-</span><span data-line="144"><span class="sd">        &quot;&quot;&quot;</span>
-</span><span data-line="145">        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span>
-</span><span data-line="146">            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_redis</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">_DELETE_IF_OWNER</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefix</span> <span class="o">+</span> <span class="n">key</span><span class="p">,</span> <span class="n">expected</span><span class="p">)</span>
-</span><span data-line="147">        <span class="p">)</span></div>
+</span><span data-line="152">    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">expected</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="153"><span class="w">        </span><span class="sd">&quot;&quot;&quot;Release a reservation only while it is still owned.</span>
+</span><span data-line="154">
+</span><span data-line="155"><span class="sd">        Returns:</span>
+</span><span data-line="156"><span class="sd">            Whether the stored value still held ``expected`` and was removed.</span>
+</span><span data-line="157"><span class="sd">        &quot;&quot;&quot;</span>
+</span><span data-line="158">        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span>
+</span><span data-line="159">            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_redis</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">_DELETE_IF_OWNER</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefix</span> <span class="o">+</span> <span class="n">key</span><span class="p">,</span> <span class="n">expected</span><span class="p">)</span>
+</span><span data-line="160">        <span class="p">)</span></div>
 </div>
 
 </span></pre></div>
