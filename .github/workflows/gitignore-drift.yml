@@ -24,6 +24,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           persist-credentials: false
+      - name: Set up uv
+        # uv must precede mise: the pipx backend installs cobo (requires-python
+        # >=3.14) via `uv tool install` when uv is present, and falls back to the
+        # system pipx interpreter otherwise.
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
       - name: Install mise tools
         # cobo is pinned in mise.toml (pipx backend, Renovate-tracked) and run
         # via `mise exec`, mirroring how ghalint/all-contributors are invoked.

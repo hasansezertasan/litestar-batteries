@@ -57,7 +57,7 @@ class _RedisClient(Protocol):
     """Structural type for the subset of ``redis.asyncio.Redis`` we use."""
 
     def set(
-        self, name: str, value: bytes, *, nx: bool = ..., ex: int | None = ...
+        self, name: str, value: bytes, *, nx: bool = False, ex: int | None = None
     ) -> Awaitable[bool | None]:
         raise NotImplementedError  # pragma: no cover - protocol stub. - protocol stub.
 
