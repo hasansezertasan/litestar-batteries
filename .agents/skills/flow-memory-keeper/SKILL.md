@@ -5,6 +5,8 @@ description: Use at task, phase, flow, sync, archive, finish, revise, or failure
 
 # Flow Memory Keeper
 
+<!-- markdownlint-disable MD033 --><!-- Custom <workflow>/<guardrails>/<validation> elements are this skill's functional markup. -->
+
 ## Purpose
 
 This project-local skill prevents Flow work from drifting into stale specs, missing learnings, or half-archived folders.

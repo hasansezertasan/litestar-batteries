@@ -1,20 +1,74 @@
 # litestar-batteries
 
-Batteries-included utilities for [Litestar](https://litestar.dev) — reusable, first-party-flavored
-plugins that cut the boilerplate you'd otherwise re-write on every production service.
+[![CI](https://github.com/hasansezertasan/litestar-batteries/actions/workflows/ci.yml/badge.svg)](https://github.com/hasansezertasan/litestar-batteries/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/codecov/c/github/hasansezertasan/litestar-batteries)](https://codecov.io/gh/hasansezertasan/litestar-batteries)
+[![Documentation Status](https://img.shields.io/github/deployments/hasansezertasan/litestar-batteries/github-pages?label=docs)](https://hasansezertasan.github.io/litestar-batteries)
+[![PyPI - Version](https://img.shields.io/pypi/v/litestar-batteries.svg)](https://pypi.org/project/litestar-batteries)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/litestar-batteries.svg)](https://pypi.org/project/litestar-batteries)
+[![License - MIT](https://img.shields.io/github/license/hasansezertasan/litestar-batteries.svg)](https://opensource.org/licenses/MIT)
+[![GitHub Stars](https://img.shields.io/github/stars/hasansezertasan/litestar-batteries?style=social)](https://github.com/hasansezertasan/litestar-batteries/stargazers)
+[![Latest Commit](https://img.shields.io/github/last-commit/hasansezertasan/litestar-batteries)](https://github.com/hasansezertasan/litestar-batteries)
 
-Fully typed (ships `py.typed`), targets **Litestar 2.x** on **Python 3.10+**, and leans on the
-standard library plus deliberate, documented dependencies.
+[![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
+[![linting - Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/hasansezertasan/litestar-batteries/badge)](https://scorecard.dev/viewer/?uri=github.com/hasansezertasan/litestar-batteries)
+[![GitHub Tag](https://img.shields.io/github/tag/hasansezertasan/litestar-batteries?include_prereleases=&sort=semver&color=black)](https://github.com/hasansezertasan/litestar-batteries/releases/)
 
-## Install
+[![Downloads](https://pepy.tech/badge/litestar-batteries)](https://pepy.tech/project/litestar-batteries)
+[![Downloads/Month](https://pepy.tech/badge/litestar-batteries/month)](https://pepy.tech/project/litestar-batteries)
+[![Downloads/Week](https://pepy.tech/badge/litestar-batteries/week)](https://pepy.tech/project/litestar-batteries)
 
-```bash
+> Batteries-included utilities for Litestar
+
+-----
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Batteries](#batteries)
+- [Support](#support-heart)
+- [Motivation](#motivation)
+- [About](#about)
+- [Author](#author-person_with_crown)
+- [Analysis](#analysis)
+- [Contributing](#contributing-heart)
+- [Development](#development-toolbox)
+- [Releasing](#releasing)
+- [Credits](#credits)
+- [License](#license-scroll)
+- [Changelog](#changelog-memo)
+
+## Installation
+
+`litestar-batteries` is a library. Add it to your project as a dependency:
+
+```console
 uv add litestar-batteries
 ```
 
-<sub>(or `pip install litestar-batteries`)</sub>
+Or with `pip`:
+
+```console
+pip install litestar-batteries
+```
+
+### Verify the installation
+
+The package root is importable after installation:
+
+```pycon
+>>> from litestar_batteries import __doc__
+>>> isinstance(__doc__, str)
+True
+
+```
 
 ## Batteries
+
+Reusable, first-party-flavored plugins that cut the boilerplate you'd otherwise
+re-write on every production service. Fully typed (ships `py.typed`), targets
+**Litestar 2.x** on **Python 3.10+**, and leans on the standard library plus
+deliberate, documented dependencies.
 
 ### Health check
 
@@ -38,11 +92,7 @@ async def db_ready() -> None:
 
 
 app = Litestar(
-    plugins=[
-        HealthPlugin(
-            HealthConfig(checks=[HealthCheck("db", db_ready)]),
-        )
-    ]
+    plugins=[HealthPlugin(HealthConfig(checks=[HealthCheck("db", db_ready)]))]
 )
 ```
 
@@ -67,8 +117,8 @@ so a stalled dependency fails fast as `503` instead of hanging `/health/ready`:
 ```python
 HealthConfig(
     checks=[
-        HealthCheck("db", db_ready, timeout=5.0),   # 503 if it takes > 5s
-        HealthCheck("cache", cache_ready),          # timeout=None (default) → unbounded
+        HealthCheck("db", db_ready, timeout=5.0),  # 503 if it takes > 5s
+        HealthCheck("cache", cache_ready),  # timeout=None (default) → unbounded
     ]
 )
 ```
@@ -234,17 +284,76 @@ IdempotencyConfig(scope=lambda request: request.headers.get("X-Tenant-Id", ""))
 headers (`set-cookie`,
 `authorization`, hop-by-hop) are intentionally excluded from replays.
 
-## Development
+## Support :heart:
 
-```bash
-uv sync                     # install (with the dev group)
-uv run pytest               # tests (80% coverage gate)
-uv run ruff check .         # lint
-uv run ruff format --check .  # format check
-uv run mypy                 # type check (strict)
-uv run pyright              # type check (strict)
-```
+If you have any questions or need help, feel free to open an issue on the [GitHub repository][litestar-batteries].
 
-## License
+## Motivation
 
-[MIT](./LICENSE)
+Common Litestar needs — health checks, idempotency, cross-cutting utilities — are
+re-implemented from scratch on every project. `litestar-batteries` packages
+battle-tested, first-party-flavored solutions so teams start further ahead instead
+of copy-pasting glue code.
+
+## About
+
+A batteries-included utility collection for [Litestar](https://litestar.dev)
+applications: reusable extensions, plugins, and helpers for production services.
+It is for Python developers building on Litestar who want opinionated, well-tested
+building blocks. Each battery is independent and opt-in; importing one never forces
+the others.
+
+## Author :person_with_crown:
+
+This project is maintained by [Hasan Sezer Taşan][author], It's me :wave:
+
+## Analysis
+
+- [Snyk Python Package Health Analysis](https://snyk.io/advisor/python/litestar-batteries)
+- [Libraries.io - PyPI](https://libraries.io/pypi/litestar-batteries)
+- [Safety DB](https://data.safetycli.com/packages/pypi/litestar-batteries)
+- [PePy Download Stats](https://www.pepy.tech/projects/litestar-batteries)
+- [PyPI Download Stats](https://pypistats.org/packages/litestar-batteries)
+- [Pip Trends Download Stats](https://piptrends.com/package/litestar-batteries)
+- [PyPI Map Dependency Graph](https://pypimap.com/package/litestar-batteries)
+
+## Contributing :heart:
+
+Any contributions are welcome! Please follow the [Contributing Guidelines](./.github/CONTRIBUTING.md) to contribute to this project.
+
+## Development :toolbox:
+
+See the [Contributing Guidelines](./.github/CONTRIBUTING.md#your-first-code-contribution)
+for local setup, the common development tasks (exposed via [mise](https://mise.jdx.dev)),
+building and previewing the documentation, and the VS Code debugging configurations.
+
+## Releasing
+
+Versioning and releases are automated with [release-please](https://github.com/googleapis/release-please), driven by [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) PR titles squash-merged into `main`. release-please maintains a release PR that bumps the version and `CHANGELOG.md`; merging it tags the release and publishes to PyPI. See the [Contributing Guidelines](./.github/CONTRIBUTING.md#releasing) for the commit conventions, and the [Repository setup](./docs/maintaining/setup.rst) guide for one-time configuration and optional post-launch integrations such as a social preview, downstream packaging, and Repology.
+
+Pause merges that change `.github/workflows/`, including Renovate action-pin updates, from merging a release PR until the entire Release run finishes. Workflow differences between the release commit and current `main` can block tag or release creation with a 403 when using `GITHUB_TOKEN`. See [Release recovery](./docs/maintaining/setup.rst#keep-workflow-changes-out-of-an-active-release) for prevention and recovery steps.
+
+For adoption or template-update reconciliation, ask your agent to "audit this
+template adoption/update against our existing project behavior".
+The shipped [template-adoption skill](./.claude/skills/template-adoption/SKILL.md)
+also supports audits after an update was applied. It compares workflow behavior,
+required checks, custom tooling, and documentation, and asks before consequential
+cleanup. Its prek-workflow example shows why duplicate commands alone do not
+justify removing a workflow. Use the sibling `repo-setup` skill for repository
+settings and release setup.
+
+## Credits
+
+This package was created with [Copier](https://github.com/copier-org/copier) and the [hasansezertasan/copier-pyproject](https://github.com/hasansezertasan/copier-pyproject) project template.
+
+## License :scroll:
+
+This project is licensed under the [MIT License](./LICENSE).
+
+## Changelog :memo:
+
+For a detailed list of changes, please refer to the [CHANGELOG](./CHANGELOG.md).
+
+<!-- Refs -->
+[author]: https://github.com/hasansezertasan
+[litestar-batteries]: https://github.com/hasansezertasan/litestar-batteries

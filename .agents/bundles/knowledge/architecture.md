@@ -12,14 +12,18 @@ Current-state reference for how `litestar-batteries` is structured. Read alongsi
 ## What this is
 
 A **library** (no CLI, no `[project.scripts]`) of reusable, first-party-flavored Litestar
-utilities ("batteries"). Runtime deps: `litestar>=2,<3` and `msgspec` (both direct). `src/` layout,
-`litestar_batteries` package, ships `py.typed`. Built with `uv_build`.
+utilities ("batteries"). Runtime deps: `litestar>=2,<3`, `msgspec`, and `typing_extensions`
+(all direct, justified in `product/tech-stack.md`). `src/` layout,
+`litestar_batteries` package, ships `py.typed`. Built with `hatchling` + `hatch-vcs`
+(version dynamic, from Git tags).
 
 ## Package layout
 
-```
+```text
 src/litestar_batteries/
-  __init__.py            # __version__ (importlib.metadata) + re-exports every battery's public API
+  __init__.py            # re-exports every battery's public API (+ __version__)
+  _version_fallback.py   # importlib.metadata version lookup with "0.0.0" fallback
+  __main__.py            # template stub: exits non-zero (no runnable component)
   <battery>/
     __init__.py          # the battery's public API (__all__)
     models.py            # msgspec.Struct response types + dataclass config/value types
@@ -68,10 +72,12 @@ Every battery is a **Litestar `InitPlugin`**, established by the health battery:
   deadline the check is cancelled and the wrapper reports a `CheckResult` error (`"timed out after {t}s"`)
   → `503`, so a stalled dependency can no longer hang the endpoint. To keep the deadline distinct from a
   check that raises its *own* `asyncio.TimeoutError` (same exception type), the check is awaited through a
-  `_guarded` wrapper that re-types the check's own timeout as a private `_CheckFailed` (message
+  `_guarded` wrapper that re-types the check's own timeout as a private `_CheckFailedError` (message
   preserved) — so a bare `asyncio.TimeoutError` out of `wait_for` unambiguously means the deadline, and
   the check's real error is never mislabeled. Using `wait_for` (rather than a hand-rolled task +
-  `asyncio.wait`) also means the check is cancelled on caller cancellation and never orphaned.
+  `asyncio.wait`) also means the check is cancelled on caller cancellation and never orphaned. The
+  per-check try/except lives in `_evaluate_check` (returning a `CheckResult`, never raising), so the
+  readiness handler stays a flat sequential loop.
 - Public types: `HealthPlugin`, `HealthConfig`, `HealthCheck`, `HealthReport`, `CheckResult`.
 
 ## The idempotency battery
@@ -81,6 +87,10 @@ requests by an `Idempotency-Key` header, following
 [draft-ietf-httpapi-idempotency-key-header](https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-idempotency-key-header-07).
 It is a middleware battery: `on_app_init` appends an `IdempotencyMiddleware(ASGIMiddleware)` **instance**
 directly to `app_config.middleware` (no `DefineMiddleware` wrapper needed on Litestar 2.x).
+`handle` is a thin orchestrator over staged helpers — `_resolve_key` (key validation/passthrough),
+`_prepare_body` (buffering + size/disconnect handling), `_acquire` (claim/store reservation),
+`_serve_existing` (409/422/replay) — with response capture/finalization in `_Capture` /
+`_CaptureSession` and ownership-guarded writes in `_RecordWriter`.
 
 | Situation (configured method + key) | Result |
 |-------------------------------------|--------|
