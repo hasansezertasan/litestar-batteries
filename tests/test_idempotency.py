@@ -420,7 +420,8 @@ async def test_oversized_response_chunk_is_not_copied() -> None:
     assert (
         peak < len(chunk) // 2
     )  # the upstream chunk exists before tracing; no full-size copy
-    assert await claim.claim(store_key("POST", "/big", "k"), b"probe", ttl=10) is None
+    probe = await claim.claim(store_key("POST", "/big", "k"), b"probe", ttl=10)
+    assert probe is None
 
 
 def test_same_key_isolated_across_endpoints() -> None:
@@ -525,10 +526,10 @@ async def test_buffer_request_reassembles_chunked_body() -> None:
     body, replay, disconnected, _big = await _buffer_request(receive)
     assert body == b"abcd"  # chunks reassembled for fingerprinting
     assert not disconnected
-    assert (
-        cast("dict[str, Any]", await replay())["body"] == b"ab"
-    )  # replayed verbatim to the app
-    assert cast("dict[str, Any]", await replay())["body"] == b"cd"
+    first = cast("dict[str, Any]", await replay())
+    assert first["body"] == b"ab"  # replayed verbatim to the app
+    second = cast("dict[str, Any]", await replay())
+    assert second["body"] == b"cd"
 
 
 @pytest.mark.anyio
@@ -571,7 +572,8 @@ async def test_buffered_receive_waits_for_server_disconnect_after_body() -> None
     assert body == b"body"
     assert not disconnected
     assert not oversized
-    assert await replay() is body_message
+    replayed = await replay()
+    assert replayed is body_message
     assert receives == 1  # replaying the body does not read ahead from the server
 
     async def watch_disconnect() -> ReceiveMessage:
@@ -584,7 +586,8 @@ async def test_buffered_receive_waits_for_server_disconnect_after_body() -> None
             not watcher.done()
         )  # post-body receive blocks until the server sends an event
         client_disconnected.set()
-        assert await asyncio.wait_for(watcher, 1) is disconnect
+        disconnected = await asyncio.wait_for(watcher, 1)
+        assert disconnected is disconnect
     finally:
         watcher.cancel()
         await asyncio.gather(watcher, return_exceptions=True)
@@ -703,17 +706,22 @@ async def test_redis_atomic_claim() -> None:
     """Exercise the Redis claim/set/delete ownership round-trip."""
     redis = _FakeRedis()
     claim = RedisAtomicClaim(redis, prefix="idem:")
-    assert await claim.claim("k", b"first", ttl=10) is None  # won the reservation
-    assert (
-        await claim.claim("k", b"second", ttl=10) == b"first"
-    )  # lost → incumbent bytes
-    assert not await claim.set("k", b"wrong", expected=b"other", ttl=10)
-    assert not await claim.delete("k", expected=b"other")
-    assert await claim.set("k", b"done", expected=b"first", ttl=10)
+    first = await claim.claim("k", b"first", ttl=10)
+    assert first is None  # won the reservation
+    second = await claim.claim("k", b"second", ttl=10)
+    assert second == b"first"  # lost → incumbent bytes
+    wrong_set = await claim.set("k", b"wrong", expected=b"other", ttl=10)
+    assert not wrong_set
+    wrong_delete = await claim.delete("k", expected=b"other")
+    assert not wrong_delete
+    done_set = await claim.set("k", b"done", expected=b"first", ttl=10)
+    assert done_set
     assert redis.store["idem:k"] == b"done"
-    assert await claim.delete("k", expected=b"done")
+    done_delete = await claim.delete("k", expected=b"done")
+    assert done_delete
     assert "idem:k" not in redis.store
-    assert await redis.delete("a", "b", "c") == 0  # variadic delete, nothing stored
+    removed = await redis.delete("a", "b", "c")
+    assert removed == 0  # variadic delete, nothing stored
 
 
 def test_same_key_different_query_string_conflicts() -> None:
@@ -812,21 +820,25 @@ async def test_redis_claim_retries_when_incumbent_vanishes() -> None:
 
     redis = _Vanishing()
     claim = RedisAtomicClaim(redis)
-    assert (
-        await claim.claim("k", b"mine", ttl=10) is None
-    )  # re-acquired, not a phantom win
+    reacquired = await claim.claim("k", b"mine", ttl=10)
+    assert reacquired is None  # re-acquired, not a phantom win
     assert redis.store["idempotency:k"] == b"mine"
-    assert await claim.claim("k", b"other", ttl=10) == b"mine"
+    other = await claim.claim("k", b"other", ttl=10)
+    assert other == b"mine"
 
 
 @pytest.mark.anyio
 async def test_dict_claim_rejects_foreign_owner() -> None:
     """Refuse set/delete from a reservation that changed hands."""
     claim = _DictClaim()
-    assert await claim.claim("k", b"mine", ttl=10) is None
-    assert not await claim.set("k", b"other", expected=b"stale", ttl=10)
-    assert not await claim.delete("k", expected=b"stale")
-    assert await claim.delete("k", expected=b"mine")
+    mine = await claim.claim("k", b"mine", ttl=10)
+    assert mine is None
+    stale_set = await claim.set("k", b"other", expected=b"stale", ttl=10)
+    assert not stale_set
+    stale_delete = await claim.delete("k", expected=b"stale")
+    assert not stale_delete
+    mine_delete = await claim.delete("k", expected=b"mine")
+    assert mine_delete
 
 
 @pytest.mark.anyio
@@ -942,8 +954,10 @@ async def test_buffer_request_does_not_retain_oversized_chunk() -> None:
     assert too_large
     assert not disconnected
     assert body == b"ab"
-    assert (await replay()).get("body") == b"ab"
-    assert (await replay())["type"] == "http.disconnect"
+    replayed_body = await replay()
+    assert replayed_body.get("body") == b"ab"
+    replayed_end = await replay()
+    assert replayed_end["type"] == "http.disconnect"
 
 
 @pytest.mark.anyio

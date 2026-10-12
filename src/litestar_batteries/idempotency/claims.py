@@ -30,19 +30,27 @@ class AtomicClaim(Protocol):
 
         Return ``None`` if the caller won the reservation (key was absent), else
         the bytes already stored under ``key`` (another request holds it).
+
+        Raises:
+            NotImplementedError: Protocol stub; concrete backends override this.
         """
-        # pylint: disable-next=unnecessary-ellipsis
-        ...  # pragma: no cover - protocol stub, never called directly.
+        raise NotImplementedError  # pragma: no cover - protocol stub.
 
     async def set(self, key: str, value: bytes, *, expected: bytes, ttl: int) -> bool:
-        """Atomically replace ``key`` only if it holds ``expected``; return success."""
-        # pylint: disable-next=unnecessary-ellipsis
-        ...  # pragma: no cover - protocol stub, never called directly.
+        """Atomically replace ``key`` only if it holds ``expected``; return success.
+
+        Raises:
+            NotImplementedError: Protocol stub; concrete backends override this.
+        """
+        raise NotImplementedError  # pragma: no cover - protocol stub.
 
     async def delete(self, key: str, *, expected: bytes) -> bool:
-        """Atomically remove ``key`` only if it holds ``expected``; return success."""
-        # pylint: disable-next=unnecessary-ellipsis
-        ...  # pragma: no cover - protocol stub, never called directly.
+        """Atomically remove ``key`` only if it holds ``expected``; return success.
+
+        Raises:
+            NotImplementedError: Protocol stub; concrete backends override this.
+        """
+        raise NotImplementedError  # pragma: no cover - protocol stub.
 
 
 class _RedisClient(Protocol):
@@ -50,11 +58,16 @@ class _RedisClient(Protocol):
 
     def set(
         self, name: str, value: bytes, *, nx: bool = ..., ex: int | None = ...
-    ) -> Awaitable[bool | None]: ...  # pragma: no cover - protocol stub.
-    def get(self, name: str) -> Awaitable[bytes | None]: ...  # pragma: no cover
+    ) -> Awaitable[bool | None]:
+        raise NotImplementedError  # pragma: no cover - protocol stub. - protocol stub.
+
+    def get(self, name: str) -> Awaitable[bytes | None]:
+        raise NotImplementedError  # pragma: no cover - protocol stub.
+
     def eval(
         self, script: str, numkeys: int, *args: str | bytes | int
-    ) -> Awaitable[int]: ...  # pragma: no cover - protocol stub.
+    ) -> Awaitable[int]:
+        raise NotImplementedError  # pragma: no cover - protocol stub.
 
 
 _SET_IF_OWNER = """

@@ -358,3 +358,6 @@ docs/_static/versions.json
 megalinter-reports/
 src/**/_version.py
 mise.local.toml
+# Flow crash-recovery state and task scratch (see .agents/bundles/knowledge/conventions.md).
+.agents/transactions/
+.agents/scratch/
