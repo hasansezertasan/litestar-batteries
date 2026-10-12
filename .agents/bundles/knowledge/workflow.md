@@ -9,7 +9,9 @@ tags: [workflow, commands, developer-guide]
 
 <!-- truth: start -->
 - Task files under `.agents/bundles/specs/<flow_id>/tasks/` are authoritative; `spec.md` is the synchronized checklist and continuity view.
-- Setup `uv sync`; aggregate verify `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyright && uv run pytest` (80% coverage gate). CI runs the same commands on Python 3.10 & 3.14.
+- Setup `uv sync`; aggregate verify `uv run --locked tox run` (style gate, docs
+  doctests, version matrix; 99% coverage gate). CI runs the same tox envs across
+  the OS/Python matrix.
 - Tech-stack changes are documented in `product/tech-stack.md` before implementation (Document-Driven Development).
 - Every task declares and justifies one `verification_strategy`; only observable behavior and defect correction require an initial failing test.
 - Record durable findings in the task's `## Notes & Discoveries` and preserve unrelated worktree changes.
@@ -22,12 +24,13 @@ tags: [workflow, commands, developer-guide]
 These are the `uv`-native entrypoints (no `make`/`just` wrapper). If a wrapper is added later, switch to its targets.
 
 ```bash
-uv sync                                  # setup: deps + dev group, package editable
-uv run pytest tests/test_health.py -q --no-cov   # focused tests (--no-cov: the 80% gate applies to full runs)
-uv run ruff check .                      # lint
-uv run ruff format .                     # format (CI checks with --check)
-uv run mypy && uv run pyright            # type check (both strict; no path argument)
-uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyright && uv run pytest   # aggregate verify
+uv sync                                  # setup: deps + package editable
+uv run --locked pytest tests/test_health.py -v   # focused tests
+uv run --locked ruff check --no-fix .    # lint (gate ruff BEFORE any fix pass)
+uv run --locked ruff format --check .    # format check
+uv run --locked mypy                     # type check (strict; no path argument)
+uv run --locked tox run -e style         # full lint/type/docs-lint battery
+uv run --locked tox run                  # aggregate verify (style + doctest + matrix)
 ```
 
 Use non-interactive modes in automation. Before claiming a result, run the exact command freshly, read its complete output and exit status, and report limitations.

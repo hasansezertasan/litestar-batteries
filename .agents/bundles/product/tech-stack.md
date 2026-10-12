@@ -8,30 +8,52 @@ tags: [tech-stack, python, tooling]
 # Tech Stack
 
 <!-- truth: start -->
-- **Language:** Python (`requires-python = ">=3.10"`); CI matrix 3.10 & 3.14
-- **Framework:** Litestar — runtime dependencies `litestar>=2,<3` and `msgspec` (both direct)
-- **Package manager:** `uv` (`uv.lock` committed; CI uses `uv sync --frozen`)
-- **Build backend:** `uv_build` (`>=0.12.0,<0.13.0`)
-- **Packaging:** `src/` layout, `litestar_batteries` package, typed (`py.typed`), MIT license (PEP 639 `license` + `license-files`)
-- **Tooling:** ruff, mypy (strict), pyright (strict), pytest + pytest-cov (80% gate)
+- **Language:** Python (`requires-python = ">=3.10"`); tox envs across 3.10–3.14
+  (full range on Linux; default interpreter on macOS/Windows)
+- **Framework:** Litestar — runtime dependencies `litestar>=2,<3`, `msgspec`,
+  and `typing_extensions` (for `@override` markers on framework subclass hooks;
+  stdlib `typing.override` needs 3.12). All three are direct and documented.
+- **Package manager:** `uv` (`uv.lock` committed; everything runs `--locked`)
+- **Build backend:** `hatchling` + `hatch-vcs` (version dynamic, derived from Git
+  tags; release-please owns tagging and `CHANGELOG.md`)
+- **Packaging:** `src/` layout, `litestar_batteries` package, typed (`py.typed`),
+  MIT license
+- **Tooling:** ruff (lint `ALL` + format), mypy (strict), basedpyright/ty/pyrefly/
+  zuban (zero-warning gates), pylint (always-on), pytest + coverage (99% gate),
+  all orchestrated via `tox`; git hooks via `prek`
 <!-- truth: end -->
 
 ## Configured Tooling
 
-Declared in `[dependency-groups].dev` + `[tool.*]` of `pyproject.toml`:
+Declared in `[dependency-groups]` + `[tool.*]` of `pyproject.toml`:
 
-- **Lint & format:** `ruff` (line-length 100, target py310, lint select `E,F,I,UP,B,SIM,TC,RUF`)
-- **Type checking:** `mypy` (strict, `files=["src","tests"]`) **and** `pyright` (strict, `include=["src","tests"]`)
-- **Testing:** `pytest` + `pytest-cov`, hard `--cov-fail-under=80` gate, branch coverage on
-- **Canonical verify:** `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyright && uv run pytest`
+- **Lint & format:** `ruff` (line-length 88, `fix=true` + `unsafe-fixes=true`,
+  `select=ALL`, preview rules on). Gate with `ruff check --diff` before letting
+  it fix: the first fix pass rewrites `src/**` in place.
+- **Type checking:** `mypy` strict (runs for 3.10, 3.14, win32, darwin),
+  `basedpyright`, `ty`, `pyrefly`, `zuban` — all must be fully clean, including
+  zero warnings (basedpyright warnings fail the gate).
+- **Testing:** `pytest` (+ `pytest-xdist`, `-m <component>` markers via
+  `tests/conftest.py`), branch coverage with a hard `fail_under=99` gate;
+  the root `README.md` snippets run as doctests.
+- **Architecture:** `import-linter` exhaustive layers contract — each battery is
+  an independent sibling layer (`health | idempotency`); new batteries extend it.
+- **Docs:** Sphinx (Shibuya theme) with a warning-allowlist gate, doctest
+  builder, and versioned GitHub Pages deploys.
+- **Canonical verify:** `uv run --locked tox run` (style + doctest + version
+  matrix); fast single file: `uv run --locked pytest tests/test_smoke.py -v`;
+  hooks: `uv run --locked tox run -e prek`.
 
 ## Testing Notes
 
-- Handler/plugin tests use Litestar's sync `create_test_client`; middleware tests that need
-  concurrency use `AsyncTestClient`.
-- `pyright` runs strict on `src`; under `tests/` the `reportUnknownVariableType` /
-  `reportUnknownMemberType` rules are disabled because Litestar's `create_test_client` has a broad,
-  partially-inferred signature.
+- Handler/plugin tests use Litestar's sync `create_test_client`; middleware tests
+  that need concurrency use `AsyncTestClient` or drive `middleware.handle`
+  directly with ASGI test doubles.
+- Async test doubles keep `async` shape (the interface requires it) with an
+  `await asyncio.sleep(0)` where they otherwise would not await; Litestar
+  injects handler params by name, so unused body params are dropped, not renamed.
+- Test-only dependencies stay in the `test` group; ASGI message literals that
+  exceed litestar's event types use `cast("Message", ...)` at the call site.
 
 ## Candidate tooling (not yet added)
 

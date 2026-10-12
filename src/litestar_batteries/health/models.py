@@ -10,7 +10,10 @@ import msgspec
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Sequence
 
-Status = Literal["ok", "error"]
+__all__ = ["CheckResult", "HealthCheck", "HealthConfig", "HealthReport"]
+
+
+Status = Literal["ok", "error"]  # noqa: RUF031 -- parenthesizing breaks Literal semantics
 """Health status of a check or the overall report."""
 
 
@@ -26,7 +29,8 @@ class HealthReport(msgspec.Struct):
     """Aggregate health/readiness report."""
 
     status: Status
-    # msgspec treats an empty-literal default as a per-instance factory (no shared state).
+    # msgspec treats an empty-literal default as a per-instance factory
+    # (no shared state).
     checks: list[CheckResult] = []
 
 

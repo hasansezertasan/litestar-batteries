@@ -9,26 +9,43 @@ from litestar_batteries import HealthCheck, HealthConfig, HealthPlugin
 
 
 async def _ok() -> None:
-    return None
+    """Succeed immediately while still exercising the async check path."""
+    await asyncio.sleep(0)
 
 
 async def _fail() -> None:
-    raise RuntimeError("db down")
+    """Fail like a down dependency while still exercising the async path.
+
+    Raises:
+        RuntimeError: The simulated dependency failure.
+    """
+    await asyncio.sleep(0)
+    msg = "db down"
+    raise RuntimeError(msg)
 
 
 async def _slow() -> None:
+    """Take long enough to exceed short per-check timeouts."""
     await asyncio.sleep(0.2)
 
 
 async def _raise_timeout() -> None:
+    """Raise the check's own timeout error (not the wrapper deadline).
+
+    Raises:
+        asyncio.TimeoutError: The simulated upstream client timeout.
+    """
     # A check whose own dependency (db/http client) timed out, surfaced as
     # asyncio.TimeoutError — the SAME type wait_for raises for its deadline, so
     # the readiness handler must not conflate the two. (On 3.10 asyncio.TimeoutError
     # is distinct from builtin TimeoutError; raise the exact type to be version-proof.)
-    raise asyncio.TimeoutError("upstream db timeout")
+    await asyncio.sleep(0)
+    msg = "upstream db timeout"
+    raise asyncio.TimeoutError(msg)
 
 
 def test_liveness_always_ok() -> None:
+    """Report liveness 200 with an ok status and no checks."""
     with create_test_client(route_handlers=[], plugins=[HealthPlugin()]) as client:
         resp = client.get("/health")
         assert resp.status_code == HTTP_200_OK
@@ -36,18 +53,27 @@ def test_liveness_always_ok() -> None:
 
 
 def test_readiness_all_pass() -> None:
+    """Report 200 with per-check ok entries when every check passes."""
     config = HealthConfig(checks=[HealthCheck("a", _ok), HealthCheck("b", _ok)])
-    with create_test_client(route_handlers=[], plugins=[HealthPlugin(config)]) as client:
+    with create_test_client(
+        route_handlers=[], plugins=[HealthPlugin(config)]
+    ) as client:
         resp = client.get("/health/ready")
         assert resp.status_code == HTTP_200_OK
         body = resp.json()
         assert body["status"] == "ok"
-        assert {c["name"]: c["status"] for c in body["checks"]} == {"a": "ok", "b": "ok"}
+        assert {c["name"]: c["status"] for c in body["checks"]} == {
+            "a": "ok",
+            "b": "ok",
+        }
 
 
 def test_readiness_one_fails_returns_503() -> None:
+    """Report 503 with the failure message when any check raises."""
     config = HealthConfig(checks=[HealthCheck("a", _ok), HealthCheck("db", _fail)])
-    with create_test_client(route_handlers=[], plugins=[HealthPlugin(config)]) as client:
+    with create_test_client(
+        route_handlers=[], plugins=[HealthPlugin(config)]
+    ) as client:
         resp = client.get("/health/ready")
         assert resp.status_code == HTTP_503_SERVICE_UNAVAILABLE
         body = resp.json()
@@ -58,6 +84,7 @@ def test_readiness_one_fails_returns_503() -> None:
 
 
 def test_readiness_no_checks_ok() -> None:
+    """Report 200 when no readiness checks are configured."""
     with create_test_client(route_handlers=[], plugins=[HealthPlugin()]) as client:
         resp = client.get("/health/ready")
         assert resp.status_code == HTTP_200_OK
@@ -65,8 +92,11 @@ def test_readiness_no_checks_ok() -> None:
 
 
 def test_readiness_check_timeout_returns_503() -> None:
+    """Report 503 with a deadline message when a check exceeds its timeout."""
     config = HealthConfig(checks=[HealthCheck("slow", _slow, timeout=0.01)])
-    with create_test_client(route_handlers=[], plugins=[HealthPlugin(config)]) as client:
+    with create_test_client(
+        route_handlers=[], plugins=[HealthPlugin(config)]
+    ) as client:
         resp = client.get("/health/ready")
         assert resp.status_code == HTTP_503_SERVICE_UNAVAILABLE
         body = resp.json()
@@ -77,20 +107,26 @@ def test_readiness_check_timeout_returns_503() -> None:
 
 
 def test_readiness_timeout_none_is_unbounded() -> None:
+    """Pass a slow check under the default timeout of None (no time bound)."""
     # A slow check with the default timeout=None still passes: no time bound is
     # applied, so it must not be cut short (would fail if a finite default crept in).
     config = HealthConfig(checks=[HealthCheck("slow", _slow)])
-    with create_test_client(route_handlers=[], plugins=[HealthPlugin(config)]) as client:
+    with create_test_client(
+        route_handlers=[], plugins=[HealthPlugin(config)]
+    ) as client:
         resp = client.get("/health/ready")
         assert resp.status_code == HTTP_200_OK
         assert resp.json()["status"] == "ok"
 
 
 def test_readiness_check_own_timeout_error_kept_unbounded() -> None:
+    """Surface the check's own TimeoutError, not the wrapper deadline (unbounded)."""
     # timeout=None: a TimeoutError raised BY the check is its real failure,
     # not the wrapper deadline — surface its message, not "timed out after Nones".
     config = HealthConfig(checks=[HealthCheck("db", _raise_timeout)])
-    with create_test_client(route_handlers=[], plugins=[HealthPlugin(config)]) as client:
+    with create_test_client(
+        route_handlers=[], plugins=[HealthPlugin(config)]
+    ) as client:
         resp = client.get("/health/ready")
         assert resp.status_code == HTTP_503_SERVICE_UNAVAILABLE
         db = next(c for c in resp.json()["checks"] if c["name"] == "db")
@@ -100,10 +136,13 @@ def test_readiness_check_own_timeout_error_kept_unbounded() -> None:
 
 
 def test_readiness_check_own_timeout_error_kept_bounded() -> None:
+    """Surface the check's own TimeoutError, not the wrapper deadline (bounded)."""
     # Finite timeout: a check that raises its OWN TimeoutError immediately (well
     # within budget) must surface its real error, not the wrapper deadline.
     config = HealthConfig(checks=[HealthCheck("db", _raise_timeout, timeout=5.0)])
-    with create_test_client(route_handlers=[], plugins=[HealthPlugin(config)]) as client:
+    with create_test_client(
+        route_handlers=[], plugins=[HealthPlugin(config)]
+    ) as client:
         resp = client.get("/health/ready")
         assert resp.status_code == HTTP_503_SERVICE_UNAVAILABLE
         db = next(c for c in resp.json()["checks"] if c["name"] == "db")
@@ -112,15 +151,21 @@ def test_readiness_check_own_timeout_error_kept_bounded() -> None:
 
 
 def test_readiness_within_timeout_passes() -> None:
+    """Pass a fast check comfortably inside a generous timeout."""
     # Fast check with a generous timeout completes well within budget -> 200.
     config = HealthConfig(checks=[HealthCheck("fast", _ok, timeout=5.0)])
-    with create_test_client(route_handlers=[], plugins=[HealthPlugin(config)]) as client:
+    with create_test_client(
+        route_handlers=[], plugins=[HealthPlugin(config)]
+    ) as client:
         resp = client.get("/health/ready")
         assert resp.status_code == HTTP_200_OK
         assert resp.json()["status"] == "ok"
 
 
 def test_custom_path() -> None:
+    """Serve liveness from a custom base path."""
     config = HealthConfig(path="/healthz")
-    with create_test_client(route_handlers=[], plugins=[HealthPlugin(config)]) as client:
+    with create_test_client(
+        route_handlers=[], plugins=[HealthPlugin(config)]
+    ) as client:
         assert client.get("/healthz").status_code == HTTP_200_OK

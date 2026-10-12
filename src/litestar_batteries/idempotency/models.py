@@ -3,17 +3,24 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import msgspec
+from litestar import Request
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
-    from typing import Any
-
-    from litestar import Request
+    from typing import TypeAlias
 
     from litestar_batteries.idempotency.claims import AtomicClaim
+
+__all__ = ["IdempotencyConfig", "StoredResponse"]
+
+
+# Litestar leaves the user/auth/state generics to the application; batteries
+# only use the request as an ASGI envelope (headers, url, app), so one alias
+# keeps the intentionally-untyped form in a single documented place.
+AnyRequest: TypeAlias = Request[Any, Any, Any]  # pyright: ignore[reportExplicitAny]
 
 DEFAULT_HEADER = "Idempotency-Key"
 """Default request header carrying the idempotency key."""
@@ -21,28 +28,26 @@ DEFAULT_HEADER = "Idempotency-Key"
 DEFAULT_STORE = "idempotency"
 """Default Litestar store registry name used to persist idempotency records."""
 
-DEFAULT_REPLAY_HEADERS = frozenset(
-    {
-        "content-type",
-        "content-language",
-        "content-encoding",
-        "content-range",
-        "cache-control",
-        "etag",
-        "expires",
-        "last-modified",
-        "location",
-        # Protocol headers for cached authentication, method and rate-limit errors.
-        "www-authenticate",
-        "proxy-authenticate",
-        "allow",
-        "retry-after",
-    }
-)
+DEFAULT_REPLAY_HEADERS = frozenset({
+    "content-type",
+    "content-language",
+    "content-encoding",
+    "content-range",
+    "cache-control",
+    "etag",
+    "expires",
+    "last-modified",
+    "location",
+    # Protocol headers for cached authentication, method and rate-limit errors.
+    "www-authenticate",
+    "proxy-authenticate",
+    "allow",
+    "retry-after",
+})
 """Response headers stored and replayed by default. Volatile/sensitive headers
 (``set-cookie``, ``authorization``, hop-by-hop) are intentionally excluded."""
 
-RecordState = Literal["processing", "done"]
+RecordState = Literal["processing", "done"]  # noqa: RUF031 -- parenthesizing breaks Literal semantics
 """Lifecycle of a stored idempotency record."""
 
 
@@ -65,7 +70,9 @@ class StoredResponse(msgspec.Struct):
 
 
 @dataclass
-class IdempotencyConfig:
+# Twelve options describe one user-facing policy surface; grouping them into
+# sub-configs would break the documented flat API for no behavioral gain.
+class IdempotencyConfig:  # pylint: disable=too-many-instance-attributes
     """Configuration for :class:`IdempotencyPlugin`.
 
     ``methods`` and ``header_name`` are matched case-insensitively. ``store`` names
@@ -107,7 +114,7 @@ class IdempotencyConfig:
     lock_ttl: int = 60
     max_body_bytes: int | None = 1_048_576
     max_request_bytes: int | None = 10_485_760
-    scope: Callable[[Request[Any, Any, Any]], str] | None = None
+    scope: Callable[[AnyRequest], str] | None = None
     require_key: bool = False
     max_key_length: int = 255
     replay_headers: frozenset[str] = DEFAULT_REPLAY_HEADERS

@@ -1,0 +1,12 @@
+{
+  "config": {
+    "extends": ".github/linters/.markdownlint.yml",
+  },
+  "fix": true,
+  "globs": ["**/*.md", "**/*.markdown", "!CHANGELOG.md"],
+  // Agent workspace files (.agents/) are agent-managed content (Flow bundles and
+  // skills with functional markup); autofix has proven destructive on them, so
+  // they are linted by ruff-format only, not by markdownlint.
+  "ignores": [".agents/**"],
+  "gitignore": true,
+}

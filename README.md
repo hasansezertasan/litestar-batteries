@@ -12,7 +12,7 @@ standard library plus deliberate, documented dependencies.
 uv add litestar-batteries
 ```
 
-<sub>(or `pip install litestar-batteries`)</sub>
+(or `pip install litestar-batteries`)
 
 ## Batteries
 
@@ -38,11 +38,7 @@ async def db_ready() -> None:
 
 
 app = Litestar(
-    plugins=[
-        HealthPlugin(
-            HealthConfig(checks=[HealthCheck("db", db_ready)]),
-        )
-    ]
+    plugins=[HealthPlugin(HealthConfig(checks=[HealthCheck("db", db_ready)]))]
 )
 ```
 
@@ -67,8 +63,8 @@ so a stalled dependency fails fast as `503` instead of hanging `/health/ready`:
 ```python
 HealthConfig(
     checks=[
-        HealthCheck("db", db_ready, timeout=5.0),   # 503 if it takes > 5s
-        HealthCheck("cache", cache_ready),          # timeout=None (default) → unbounded
+        HealthCheck("db", db_ready, timeout=5.0),  # 503 if it takes > 5s
+        HealthCheck("cache", cache_ready),  # timeout=None (default) → unbounded
     ]
 )
 ```
