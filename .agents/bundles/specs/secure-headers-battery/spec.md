@@ -2,7 +2,7 @@
 type: Spec
 flow_id: secure-headers-battery
 title: Secure-headers battery
-state: planned
+state: active
 plan_revision: 1
 plan_commit: null
 state_revision: 0
@@ -112,22 +112,22 @@ Decided by the planner from the research (change via `revise` if disputed):
 
 ### Phase 1: Battery implementation
 
-- [ ] 1.1 Add `SecureHeadersConfig`, package scaffold and import-linter entry (`behavior_tdd`)
-- [ ] 1.2 Add the `before_send` hook with precedence, HSTS and message filtering (`behavior_tdd`)
-- [ ] 1.3 Add `SecureHeadersPlugin`, public exports and app-level integration tests (`behavior_tdd`)
+- [x] 1.1 Add `SecureHeadersConfig`, package scaffold and import-linter entry (`behavior_tdd`) (daa6ae3)
+- [x] 1.2 Add the `before_send` hook with precedence, HSTS and message filtering (`behavior_tdd`) (c63ff67)
+- [x] 1.3 Add `SecureHeadersPlugin`, public exports and app-level integration tests (`behavior_tdd`) (893a394)
 
 **Phase 1 checkpoint:** `uv run --locked pytest tests/test_secure_headers.py -v`, `uv run --locked tox run -e style` green; recorded via a `checkpoint` operation before Phase 2.
 
 ### Phase 2: Documentation
 
-- [ ] 2.1 Document the battery in `README.md` (`documentation_validation`)
+- [x] 2.1 Document the battery in `README.md` (`documentation_validation`) (cca7788)
 
 **Final gate (before `flow-finish`):** `uv run --locked tox run` green on the full matrix with the 99% coverage gate; manually run a demo app and `curl -sI` a 200, a 404 and the `/schema` page to eyeball the headers; open the PR with branch `feat/secure-headers-battery`, title `feat: add secure-headers battery`, body `Closes #14`.
 
 ## Continuity Snapshot
 
-- Lifecycle: planned (awaiting approval/activation). Current task: none. Claimant: none. Last verified checkpoint: none.
+- Lifecycle: active; all four tasks closed, awaiting review/finish. Current task: none. Claimant: none. Last verified checkpoint: none.
 - Decisions: D1-D8 above. Plan revision 1; state revision 0.
 - Discoveries: Litestar 2.24 route-level middleware misses router 404/405 (research F4); `before_send` does not.
-- Blockers: none. Next exact step: approve the plan, then `flow-implement secure-headers-battery` (first ready task: 1.1).
+- Blockers: none. Next exact step: `flow-review`/`flow-finish secure-headers-battery`, then open the PR.
 - Rule/knowledge paths: `AGENTS.md`, `.agents/bundles/knowledge/patterns/battery-design.md`, `.agents/bundles/knowledge/patterns/testing.md`, `.agents/bundles/knowledge/workflow.md`.
