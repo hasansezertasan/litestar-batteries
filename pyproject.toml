@@ -315,7 +315,7 @@ exhaustive_ignores = [
 # top-level subpackage; siblings may not import each other. There is no shared
 # core/ or utils/ layer. Add each new battery to this sibling list.
 layers = [
-  "health | idempotency",
+  "health | idempotency | secure_headers",
 ]
 
 
