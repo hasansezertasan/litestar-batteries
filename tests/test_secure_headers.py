@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
+from litestar_batteries.secure_headers.hooks import build_before_send
 from litestar_batteries.secure_headers.models import SecureHeadersConfig
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from litestar.types import Message, Scope
 
 DEFAULT_CSP = (
     "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
@@ -116,3 +122,90 @@ def test_invalid_config_rejected(kwargs: dict[str, Any]) -> None:
     """Unsafe or inconsistent configuration fails at construction."""
     with pytest.raises(ValueError, match=r"."):
         SecureHeadersConfig(**kwargs)
+
+
+def _send(
+    hook: Callable[[Message, Scope], None],
+    message: dict[str, Any],
+    scope: dict[str, Any],
+) -> None:
+    hook(cast("Message", message), cast("Scope", scope))
+
+
+def _start(headers: list[tuple[bytes, bytes]] | None = None) -> dict[str, Any]:
+    return {"type": "http.response.start", "status": 200, "headers": headers or []}
+
+
+def _names(message: dict[str, Any]) -> dict[bytes, bytes]:
+    return dict(message["headers"])
+
+
+def test_hook_adds_default_headers() -> None:
+    """Every enabled static header is added to the response start."""
+    hook = build_before_send(SecureHeadersConfig())
+    message = _start()
+    _send(hook, message, {"type": "http", "scheme": "http"})
+    headers = _names(message)
+    assert headers[b"x-content-type-options"] == b"nosniff"
+    assert headers[b"content-security-policy"] == DEFAULT_CSP.encode()
+    assert b"strict-transport-security" not in headers
+
+
+def test_hook_handler_header_wins_by_default() -> None:
+    """A header the handler already set is left alone, case-insensitively."""
+    hook = build_before_send(SecureHeadersConfig())
+    message = _start([(b"Content-Security-Policy", b"custom")])
+    _send(hook, message, {"type": "http", "scheme": "http"})
+    values = [
+        v for k, v in message["headers"] if k.lower() == b"content-security-policy"
+    ]
+    assert values == [b"custom"]
+
+
+def test_hook_override_replaces_handler_header() -> None:
+    """With ``override=True`` the battery's value replaces the handler's."""
+    hook = build_before_send(SecureHeadersConfig(override=True))
+    message = _start([(b"Content-Security-Policy", b"custom")])
+    _send(hook, message, {"type": "http", "scheme": "http"})
+    values = [
+        v for k, v in message["headers"] if k.lower() == b"content-security-policy"
+    ]
+    assert values == [DEFAULT_CSP.encode()]
+
+
+@pytest.mark.parametrize(
+    ("scheme", "config", "expected"),
+    [
+        ("https", SecureHeadersConfig(), b"max-age=31536000"),
+        ("http", SecureHeadersConfig(), None),
+        ("https", SecureHeadersConfig(hsts_max_age=None), None),
+        (
+            "https",
+            SecureHeadersConfig(hsts_include_subdomains=True, hsts_preload=True),
+            b"max-age=31536000; includeSubDomains; preload",
+        ),
+    ],
+)
+def test_hook_hsts_only_over_https(
+    scheme: str, config: SecureHeadersConfig, expected: bytes | None
+) -> None:
+    """HSTS is emitted only for HTTPS requests and only when enabled."""
+    hook = build_before_send(config)
+    message = _start()
+    _send(hook, message, {"type": "http", "scheme": scheme})
+    assert _names(message).get(b"strict-transport-security") == expected
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        {"type": "http.response.body", "body": b"x", "more_body": False},
+        {"type": "websocket.accept", "headers": []},
+    ],
+)
+def test_hook_ignores_other_messages(message: dict[str, Any]) -> None:
+    """Only ``http.response.start`` is modified."""
+    before = {k: list(v) if isinstance(v, list) else v for k, v in message.items()}
+    hook = build_before_send(SecureHeadersConfig())
+    _send(hook, message, {"type": "http", "scheme": "https"})
+    assert message == before

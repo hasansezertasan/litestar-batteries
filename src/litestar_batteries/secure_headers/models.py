@@ -19,14 +19,12 @@ DEFAULT_PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=()"
 _HSTS_PRELOAD_MIN_AGE = 31_536_000
 
 
-def _check_header_value(field_name: str, value: str | None) -> None:
+def _check_header_value(field_name: str, value: str) -> None:
     """Reject values that cannot be sent safely as one HTTP header line.
 
     Raises:
         ValueError: If the value has a line break or is not latin-1 encodable.
     """
-    if value is None:
-        return
     if "\r" in value or "\n" in value:
         msg = f"{field_name} must not contain line breaks"
         raise ValueError(msg)
