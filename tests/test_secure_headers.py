@@ -5,13 +5,23 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
+from litestar import Litestar, Response, get
+from litestar.datastructures import MutableScopeHeaders
+from litestar.status_codes import (
+    HTTP_200_OK,
+    HTTP_404_NOT_FOUND,
+    HTTP_405_METHOD_NOT_ALLOWED,
+    HTTP_500_INTERNAL_SERVER_ERROR,
+)
+from litestar.testing import create_test_client
 
+from litestar_batteries import SecureHeadersConfig, SecureHeadersPlugin
 from litestar_batteries.secure_headers.hooks import build_before_send
-from litestar_batteries.secure_headers.models import SecureHeadersConfig
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from litestar.testing import TestClient
     from litestar.types import Message, Scope
 
 DEFAULT_CSP = (
@@ -209,3 +219,117 @@ def test_hook_ignores_other_messages(message: dict[str, Any]) -> None:
     hook = build_before_send(SecureHeadersConfig())
     _send(hook, message, {"type": "http", "scheme": "https"})
     assert message == before
+
+
+def _client(
+    *handlers: Any,  # noqa: ANN401
+    config: SecureHeadersConfig | None = None,
+    base_url: str = "http://testserver.local",
+    **app_kwargs: Any,  # noqa: ANN401
+) -> TestClient[Litestar]:
+    return create_test_client(
+        list(handlers),
+        plugins=[SecureHeadersPlugin(config)],
+        base_url=base_url,
+        **app_kwargs,
+    )
+
+
+@get("/ok", sync_to_thread=False)
+def _ok() -> str:
+    return "ok"
+
+
+@get("/boom", sync_to_thread=False)
+def _boom() -> str:
+    msg = "boom"
+    raise RuntimeError(msg)
+
+
+@get("/custom", sync_to_thread=False)
+def _custom() -> Response[str]:
+    return Response("x", headers={"Content-Security-Policy": "custom"})
+
+
+def test_plugin_default_config() -> None:
+    """The plugin defaults to ``SecureHeadersConfig()``."""
+    assert SecureHeadersPlugin().config == SecureHeadersConfig()
+
+
+def test_plugin_headers_on_success_and_hsts_scheme() -> None:
+    """A 200 carries the defaults; HSTS appears only over HTTPS."""
+    with _client(_ok) as client:
+        response = client.get("/ok")
+        assert response.status_code == HTTP_200_OK
+        assert response.headers["x-content-type-options"] == "nosniff"
+        assert response.headers["content-security-policy"] == DEFAULT_CSP
+        assert "strict-transport-security" not in response.headers
+    with _client(_ok, base_url="https://testserver.local") as client:
+        assert client.get("/ok").headers["strict-transport-security"] == (
+            "max-age=31536000"
+        )
+
+
+def test_plugin_headers_on_router_errors() -> None:
+    """Router-level 404 and 405 responses are covered (route middleware misses them)."""
+    with _client(_ok) as client:
+        not_found = client.get("/missing")
+        wrong_method = client.post("/ok")
+    assert not_found.status_code == HTTP_404_NOT_FOUND
+    assert wrong_method.status_code == HTTP_405_METHOD_NOT_ALLOWED
+    for response in (not_found, wrong_method):
+        assert response.headers["x-frame-options"] == "DENY"
+
+
+def test_plugin_headers_on_unhandled_exception() -> None:
+    """A handler crash (500) still carries the headers."""
+    with _client(_boom) as client:
+        response = client.get("/boom")
+    assert response.status_code == HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.headers["x-content-type-options"] == "nosniff"
+
+
+def test_plugin_handler_header_wins_unless_override() -> None:
+    """Handler-set CSP survives by default and is replaced with ``override``."""
+    with _client(_custom) as client:
+        assert client.get("/custom").headers["content-security-policy"] == "custom"
+    with _client(_custom, config=SecureHeadersConfig(override=True)) as client:
+        assert client.get("/custom").headers["content-security-policy"] == DEFAULT_CSP
+
+
+def test_plugin_per_field_overrides() -> None:
+    """Fields can be changed or disabled individually."""
+    config = SecureHeadersConfig(frame_options=None, referrer_policy="no-referrer")
+    with _client(_ok, config=config) as client:
+        response = client.get("/ok")
+    assert "x-frame-options" not in response.headers
+    assert response.headers["referrer-policy"] == "no-referrer"
+
+
+def test_plugin_preserves_user_before_send_hook() -> None:
+    """A user-registered ``before_send`` hook still runs alongside the plugin."""
+
+    def stamp(message: Message, scope: Scope) -> None:  # noqa: ARG001
+        if message["type"] == "http.response.start":
+            MutableScopeHeaders.from_message(message)["x-user-hook"] = "1"
+
+    with _client(_ok, before_send=[stamp]) as client:
+        response = client.get("/ok")
+    assert response.headers["x-user-hook"] == "1"
+    assert response.headers["x-content-type-options"] == "nosniff"
+
+
+def test_plugin_openapi_ui_served_with_default_policy() -> None:
+    """The default CSP leaves the OpenAPI UI usable (no script/default-src)."""
+    with _client(_ok) as client:
+        response = client.get("/schema/swagger")
+    assert response.status_code == HTTP_200_OK
+    csp = response.headers["content-security-policy"]
+    assert "script-src" not in csp
+    assert "default-src" not in csp
+
+
+def test_app_without_plugin_has_no_security_headers() -> None:
+    """Not registering the plugin changes nothing."""
+    with create_test_client([_ok]) as client:
+        assert "x-content-type-options" not in client.get("/ok").headers

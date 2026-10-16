@@ -14,6 +14,7 @@ from litestar_batteries.idempotency import (
     IdempotencyPlugin,
     RedisAtomicClaim,
 )
+from litestar_batteries.secure_headers import SecureHeadersConfig, SecureHeadersPlugin
 
 __all__ = [
     "AtomicClaim",
@@ -25,5 +26,7 @@ __all__ = [
     "IdempotencyConfig",
     "IdempotencyPlugin",
     "RedisAtomicClaim",
+    "SecureHeadersConfig",
+    "SecureHeadersPlugin",
     "__version__",
 ]
