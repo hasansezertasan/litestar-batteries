@@ -18,7 +18,7 @@ from litestar.testing import create_test_client
 
 from litestar_batteries import SecureHeadersConfig, SecureHeadersPlugin
 from litestar_batteries.secure_headers.hooks import build_before_send
-from litestar_batteries.secure_headers.models import hsts_value, response_headers
+from litestar_batteries.secure_headers.models import _hsts_value, _response_headers
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -53,7 +53,7 @@ def test_defaults() -> None:
 
 def test_response_headers_defaults() -> None:
     """Default static headers are lowercase pairs and never include X-XSS-Protection."""
-    assert response_headers(SecureHeadersConfig()) == (
+    assert _response_headers(SecureHeadersConfig()) == (
         ("x-content-type-options", "nosniff"),
         ("x-frame-options", "DENY"),
         ("content-security-policy", DEFAULT_CSP),
@@ -81,9 +81,9 @@ def test_disabled_fields_are_omitted(field: str, header: str) -> None:
     off = False if field == "content_type_options" else None
     kwargs: dict[str, Any] = {field: off}
     config = SecureHeadersConfig(**kwargs)
-    names = [name for name, _ in response_headers(config)]
+    names = [name for name, _ in _response_headers(config)]
     assert header not in names
-    assert len(names) == len(response_headers(SecureHeadersConfig())) - 1
+    assert len(names) == len(_response_headers(SecureHeadersConfig())) - 1
 
 
 def test_opt_in_headers_are_emitted() -> None:
@@ -93,7 +93,7 @@ def test_opt_in_headers_are_emitted() -> None:
         cross_origin_resource_policy="same-site",
         cross_origin_embedder_policy="require-corp",
     )
-    headers = dict(response_headers(config))
+    headers = dict(_response_headers(config))
     assert headers["content-security-policy-report-only"] == "default-src 'self'"
     assert headers["cross-origin-resource-policy"] == "same-site"
     assert headers["cross-origin-embedder-policy"] == "require-corp"
@@ -114,7 +114,7 @@ def test_opt_in_headers_are_emitted() -> None:
 )
 def test_hsts_value(kwargs: dict[str, Any], expected: str | None) -> None:
     """The HSTS directive string is assembled from its parts."""
-    assert hsts_value(SecureHeadersConfig(**kwargs)) == expected
+    assert _hsts_value(SecureHeadersConfig(**kwargs)) == expected
 
 
 @pytest.mark.parametrize(
@@ -167,7 +167,7 @@ async def test_hook_adds_default_headers() -> None:
     await _send(hook, message, {"type": "http", "scheme": "http"})
     expected = {
         name.encode(): value.encode()
-        for name, value in response_headers(SecureHeadersConfig())
+        for name, value in _response_headers(SecureHeadersConfig())
     }
     assert _names(message) == expected
 
@@ -364,7 +364,7 @@ def test_hook_is_coroutine_function() -> None:
 
 def test_empty_string_disables_header() -> None:
     """An empty value omits the header, like ``None``."""
-    names = [n for n, _ in response_headers(SecureHeadersConfig(referrer_policy=""))]
+    names = [n for n, _ in _response_headers(SecureHeadersConfig(referrer_policy=""))]
     assert "referrer-policy" not in names
 
 

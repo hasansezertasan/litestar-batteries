@@ -86,7 +86,7 @@ class SecureHeadersConfig:  # pylint: disable=too-many-instance-attributes
 
     def __post_init__(self) -> None:
         """Validate header values and the HSTS directive combination."""
-        for name, value in response_headers(self):
+        for name, value in _response_headers(self):
             _check_header_value(name, value)
         self._check_hsts()
 
@@ -112,12 +112,12 @@ class SecureHeadersConfig:  # pylint: disable=too-many-instance-attributes
             raise ValueError(msg)
 
 
-def response_headers(config: SecureHeadersConfig) -> tuple[tuple[str, str], ...]:
+def _response_headers(config: SecureHeadersConfig) -> tuple[tuple[str, str], ...]:
     """Return the enabled static headers as lowercase ``(name, value)`` pairs.
 
     Returns:
         The headers sent on every response, excluding HSTS (see
-        :func:`hsts_value`, which is conditional on the request scheme).
+        :func:`_hsts_value`, which is conditional on the request scheme).
     """
     rows = (
         ("x-content-type-options", "nosniff" if config.content_type_options else None),
@@ -137,7 +137,7 @@ def response_headers(config: SecureHeadersConfig) -> tuple[tuple[str, str], ...]
     return tuple((name, value) for name, value in rows if value)
 
 
-def hsts_value(config: SecureHeadersConfig) -> str | None:
+def _hsts_value(config: SecureHeadersConfig) -> str | None:  # pyright: ignore[reportUnusedFunction]
     """Return the ``Strict-Transport-Security`` value, or ``None`` if disabled.
 
     Returns:
