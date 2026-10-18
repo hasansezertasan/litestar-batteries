@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, cast
 from litestar.datastructures import MutableScopeHeaders
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable, MutableMapping
+    from collections.abc import Awaitable, Callable
 
     from litestar.types import Message, Scope
 
@@ -61,7 +61,7 @@ def build_before_send(
             return
         # ASGI makes ``headers`` optional but Litestar's types require it, and
         # ``from_message`` raises without the key.
-        raw = cast("MutableMapping[str, object]", cast("object", message))
+        raw = cast("dict[str, object]", cast("object", message))
         _ = raw.setdefault("headers", [])
         headers = MutableScopeHeaders.from_message(message)
         _apply(headers, static, override=override)
