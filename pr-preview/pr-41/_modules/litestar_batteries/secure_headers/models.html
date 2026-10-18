@@ -206,7 +206,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="86">
 </span><span data-line="87">    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span data-line="88"><span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate header values and the HSTS directive combination.&quot;&quot;&quot;</span>
-</span><span data-line="89">        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">response_headers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span data-line="89">        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">_response_headers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 </span><span data-line="90">            <span class="n">_check_header_value</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
 </span><span data-line="91">        <span class="bp">self</span><span class="o">.</span><span class="n">_check_hsts</span><span class="p">()</span>
 </span><span data-line="92">
@@ -233,12 +233,12 @@ data-aria-dark="Switch to auto color mode">
 
 </span><span data-line="113">
 </span><span data-line="114">
-</span><span data-line="115"><span class="k">def</span><span class="w"> </span><span class="nf">response_headers</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">SecureHeadersConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="o">...</span><span class="p">]:</span>
+</span><span data-line="115"><span class="k">def</span><span class="w"> </span><span class="nf">_response_headers</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">SecureHeadersConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="o">...</span><span class="p">]:</span>
 </span><span data-line="116"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the enabled static headers as lowercase ``(name, value)`` pairs.</span>
 </span><span data-line="117">
 </span><span data-line="118"><span class="sd">    Returns:</span>
 </span><span data-line="119"><span class="sd">        The headers sent on every response, excluding HSTS (see</span>
-</span><span data-line="120"><span class="sd">        :func:`hsts_value`, which is conditional on the request scheme).</span>
+</span><span data-line="120"><span class="sd">        :func:`_hsts_value`, which is conditional on the request scheme).</span>
 </span><span data-line="121"><span class="sd">    &quot;&quot;&quot;</span>
 </span><span data-line="122">    <span class="n">rows</span> <span class="o">=</span> <span class="p">(</span>
 </span><span data-line="123">        <span class="p">(</span><span class="s2">&quot;x-content-type-options&quot;</span><span class="p">,</span> <span class="s2">&quot;nosniff&quot;</span> <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">content_type_options</span> <span class="k">else</span> <span class="kc">None</span><span class="p">),</span>
@@ -258,7 +258,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="137">    <span class="k">return</span> <span class="nb">tuple</span><span class="p">((</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">rows</span> <span class="k">if</span> <span class="n">value</span><span class="p">)</span>
 </span><span data-line="138">
 </span><span data-line="139">
-</span><span data-line="140"><span class="k">def</span><span class="w"> </span><span class="nf">hsts_value</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">SecureHeadersConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="140"><span class="k">def</span><span class="w"> </span><span class="nf">_hsts_value</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">SecureHeadersConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pyright: ignore[reportUnusedFunction]</span>
 </span><span data-line="141"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the ``Strict-Transport-Security`` value, or ``None`` if disabled.</span>
 </span><span data-line="142">
 </span><span data-line="143"><span class="sd">    Returns:</span>
