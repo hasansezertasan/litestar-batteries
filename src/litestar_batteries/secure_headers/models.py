@@ -17,16 +17,19 @@ DEFAULT_PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=()"
 """Deny the most sensitive browser features by default."""
 
 _HSTS_PRELOAD_MIN_AGE = 31_536_000
+_SPACE = 0x20
+_DEL = 0x7F
 
 
 def _check_header_value(field_name: str, value: str) -> None:
     """Reject values that cannot be sent safely as one HTTP header line.
 
     Raises:
-        ValueError: If the value has a line break or is not latin-1 encodable.
+        ValueError: If the value has a control character or is not latin-1
+            encodable.
     """
-    if "\r" in value or "\n" in value:
-        msg = f"{field_name} must not contain line breaks"
+    if any(ord(char) < _SPACE or ord(char) == _DEL for char in value if char != "\t"):
+        msg = f"{field_name} must not contain control characters"
         raise ValueError(msg)
     try:
         _ = value.encode("latin-1")
@@ -42,8 +45,8 @@ class SecureHeadersConfig:  # pylint: disable=too-many-instance-attributes
     """Configuration for :class:`SecureHeadersPlugin`.
 
     Every header field disables its header when set to ``None`` (or ``False``
-    for ``content_type_options``). ``X-XSS-Protection`` is deprecated and is
-    intentionally never sent.
+    for ``content_type_options``); an empty string also omits the header.
+    ``X-XSS-Protection`` is deprecated and is intentionally never sent.
 
     Attributes:
         hsts_max_age: ``Strict-Transport-Security`` max-age in seconds, sent

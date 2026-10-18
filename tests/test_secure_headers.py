@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
@@ -19,7 +20,7 @@ from litestar_batteries import SecureHeadersConfig, SecureHeadersPlugin
 from litestar_batteries.secure_headers.hooks import build_before_send
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Awaitable, Callable
 
     from litestar.testing import TestClient
     from litestar.types import Message, Scope
@@ -116,30 +117,37 @@ def test_hsts_value(kwargs: dict[str, Any], expected: str | None) -> None:
 
 
 @pytest.mark.parametrize(
-    "kwargs",
+    ("kwargs", "message"),
     [
-        {"referrer_policy": "no-referrer\r\nX-Evil: 1"},
-        {"content_security_policy": "default-src 'self'\n"},
-        {"permissions_policy": "geolocation=(€)"},
-        {"hsts_max_age": -1},
-        {"hsts_preload": True},
-        {"hsts_preload": True, "hsts_include_subdomains": True, "hsts_max_age": 60},
-        {"hsts_max_age": None, "hsts_include_subdomains": True},
-        {"hsts_max_age": None, "hsts_preload": True},
+        ({"referrer_policy": "no-referrer\r\nX-Evil: 1"}, "control characters"),
+        ({"content_security_policy": "default-src 'self'\n"}, "control characters"),
+        ({"permissions_policy": "a\x00b"}, "control characters"),
+        ({"permissions_policy": "geolocation=(\u20ac)"}, "latin-1"),
+        ({"hsts_max_age": -1}, "negative"),
+        ({"hsts_preload": True}, "hsts_preload needs"),
+        (
+            {"hsts_preload": True, "hsts_include_subdomains": True, "hsts_max_age": 60},
+            "hsts_preload needs",
+        ),
+        (
+            {"hsts_max_age": None, "hsts_include_subdomains": True},
+            "require hsts_max_age",
+        ),
+        ({"hsts_max_age": None, "hsts_preload": True}, "require hsts_max_age"),
     ],
 )
-def test_invalid_config_rejected(kwargs: dict[str, Any]) -> None:
+def test_invalid_config_rejected(kwargs: dict[str, Any], message: str) -> None:
     """Unsafe or inconsistent configuration fails at construction."""
-    with pytest.raises(ValueError, match=r"."):
+    with pytest.raises(ValueError, match=message):
         SecureHeadersConfig(**kwargs)
 
 
-def _send(
-    hook: Callable[[Message, Scope], None],
+async def _send(
+    hook: Callable[[Message, Scope], Awaitable[None]],
     message: dict[str, Any],
     scope: dict[str, Any],
 ) -> None:
-    hook(cast("Message", message), cast("Scope", scope))
+    await hook(cast("Message", message), cast("Scope", scope))
 
 
 def _start(headers: list[tuple[bytes, bytes]] | None = None) -> dict[str, Any]:
@@ -150,33 +158,37 @@ def _names(message: dict[str, Any]) -> dict[bytes, bytes]:
     return dict(message["headers"])
 
 
-def test_hook_adds_default_headers() -> None:
+@pytest.mark.anyio
+async def test_hook_adds_default_headers() -> None:
     """Every enabled static header is added to the response start."""
     hook = build_before_send(SecureHeadersConfig())
     message = _start()
-    _send(hook, message, {"type": "http", "scheme": "http"})
-    headers = _names(message)
-    assert headers[b"x-content-type-options"] == b"nosniff"
-    assert headers[b"content-security-policy"] == DEFAULT_CSP.encode()
-    assert b"strict-transport-security" not in headers
+    await _send(hook, message, {"type": "http", "scheme": "http"})
+    expected = {
+        name.encode(): value.encode()
+        for name, value in SecureHeadersConfig().response_headers()
+    }
+    assert _names(message) == expected
 
 
-def test_hook_handler_header_wins_by_default() -> None:
+@pytest.mark.anyio
+async def test_hook_handler_header_wins_by_default() -> None:
     """A header the handler already set is left alone, case-insensitively."""
     hook = build_before_send(SecureHeadersConfig())
     message = _start([(b"Content-Security-Policy", b"custom")])
-    _send(hook, message, {"type": "http", "scheme": "http"})
+    await _send(hook, message, {"type": "http", "scheme": "http"})
     values = [
         v for k, v in message["headers"] if k.lower() == b"content-security-policy"
     ]
     assert values == [b"custom"]
 
 
-def test_hook_override_replaces_handler_header() -> None:
+@pytest.mark.anyio
+async def test_hook_override_replaces_handler_header() -> None:
     """With ``override=True`` the battery's value replaces the handler's."""
     hook = build_before_send(SecureHeadersConfig(override=True))
     message = _start([(b"Content-Security-Policy", b"custom")])
-    _send(hook, message, {"type": "http", "scheme": "http"})
+    await _send(hook, message, {"type": "http", "scheme": "http"})
     values = [
         v for k, v in message["headers"] if k.lower() == b"content-security-policy"
     ]
@@ -196,13 +208,14 @@ def test_hook_override_replaces_handler_header() -> None:
         ),
     ],
 )
-def test_hook_hsts_only_over_https(
+@pytest.mark.anyio
+async def test_hook_hsts_only_over_https(
     scheme: str, config: SecureHeadersConfig, expected: bytes | None
 ) -> None:
     """HSTS is emitted only for HTTPS requests and only when enabled."""
     hook = build_before_send(config)
     message = _start()
-    _send(hook, message, {"type": "http", "scheme": scheme})
+    await _send(hook, message, {"type": "http", "scheme": scheme})
     assert _names(message).get(b"strict-transport-security") == expected
 
 
@@ -213,11 +226,12 @@ def test_hook_hsts_only_over_https(
         {"type": "websocket.accept", "headers": []},
     ],
 )
-def test_hook_ignores_other_messages(message: dict[str, Any]) -> None:
+@pytest.mark.anyio
+async def test_hook_ignores_other_messages(message: dict[str, Any]) -> None:
     """Only ``http.response.start`` is modified."""
     before = {k: list(v) if isinstance(v, list) else v for k, v in message.items()}
     hook = build_before_send(SecureHeadersConfig())
-    _send(hook, message, {"type": "http", "scheme": "https"})
+    await _send(hook, message, {"type": "http", "scheme": "https"})
     assert message == before
 
 
@@ -333,3 +347,49 @@ def test_app_without_plugin_has_no_security_headers() -> None:
     """Not registering the plugin changes nothing."""
     with create_test_client([_ok]) as client:
         assert "x-content-type-options" not in client.get("/ok").headers
+
+
+@pytest.mark.anyio
+async def test_hook_override_replaces_three_duplicate_headers() -> None:
+    """``override`` leaves exactly one value even if the handler set several."""
+    hook = build_before_send(SecureHeadersConfig(override=True))
+    message = _start([(b"content-security-policy", b"a")] * 3)
+    await _send(hook, message, {"type": "http", "scheme": "http"})
+    values = [v for k, v in message["headers"] if k == b"content-security-policy"]
+    assert values == [DEFAULT_CSP.encode()]
+
+
+@pytest.mark.anyio
+async def test_hook_override_applies_to_hsts() -> None:
+    """``override`` also replaces a handler-set HSTS header over HTTPS."""
+    hook = build_before_send(SecureHeadersConfig(override=True))
+    message = _start([(b"strict-transport-security", b"max-age=1")])
+    await _send(hook, message, {"type": "http", "scheme": "https"})
+    assert _names(message)[b"strict-transport-security"] == b"max-age=31536000"
+
+
+def test_hook_is_coroutine_function() -> None:
+    """The hook is async so Litestar does not thread-dispatch every message."""
+    assert inspect.iscoroutinefunction(build_before_send(SecureHeadersConfig()))
+
+
+def test_empty_string_disables_header() -> None:
+    """An empty value omits the header, like ``None``."""
+    names = [n for n, _ in SecureHeadersConfig(referrer_policy="").response_headers()]
+    assert "referrer-policy" not in names
+
+
+@pytest.mark.parametrize("override", [False, True])
+def test_plugin_ordering_with_user_hook_setting_csp(*, override: bool) -> None:
+    """A user hook running first keeps its CSP unless ``override`` is set."""
+
+    def user_csp(message: Message, scope: Scope) -> None:  # noqa: ARG001
+        if message["type"] == "http.response.start":
+            MutableScopeHeaders.from_message(message)["content-security-policy"] = (
+                "user"
+            )
+
+    config = SecureHeadersConfig(override=override)
+    with _client(_ok, config=config, before_send=[user_csp]) as client:
+        csp = client.get("/ok").headers["content-security-policy"]
+    assert csp == (DEFAULT_CSP if override else "user")

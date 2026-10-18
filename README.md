@@ -297,7 +297,7 @@ from litestar_batteries import SecureHeadersConfig, SecureHeadersPlugin
 
 app = Litestar(
     route_handlers=[...],
-    plugins=[SecureHeadersPlugin(SecureHeadersConfig(frame_options="SAMEORIGIN"))],
+    plugins=[SecureHeadersPlugin(SecureHeadersConfig(referrer_policy="no-referrer"))],
 )
 ```
 
@@ -327,6 +327,10 @@ for your own pages, for example:
 ```python
 SecureHeadersConfig(content_security_policy="default-src 'self'; img-src 'self' data:")
 ```
+
+`frame-ancestors` takes precedence over `X-Frame-Options` in modern browsers, so to allow
+same-origin framing set both `frame_options="SAMEORIGIN"` and a policy containing
+`frame-ancestors 'self'`.
 
 If you serve the OpenAPI UI too, set a looser policy on those routes via a handler header
 (handler-set headers win by default) or keep the default. Use
@@ -360,7 +364,7 @@ scope.
 | `permitted_cross_domain_policies` | `str \| None` | `"none"` | `X-Permitted-Cross-Domain-Policies`. |
 | `override` | `bool` | `False` | Replace headers a handler already set. |
 
-Invalid values (line breaks, non-latin-1 characters, a negative max-age, or `preload` without its
+Invalid values (control characters such as line breaks, non-latin-1 characters, a negative max-age, or `preload` without its
 prerequisites) raise `ValueError` when the config is created.
 
 ## Support :heart:

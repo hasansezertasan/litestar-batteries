@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from litestar.datastructures import MutableScopeHeaders
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Awaitable, Callable
 
     from litestar.types import Message, Scope
 
@@ -26,12 +26,17 @@ def _apply(
     """Write ``items`` into ``headers``; handler-set values win unless overriding."""
     for name, value in items:
         if override:
-            headers[name] = value
+            # ``del`` removes every copy (``__setitem__`` leaves stale duplicates
+            # when a handler set three or more).
+            del headers[name]
+            headers.add(name, value)
         else:
             headers.setdefault(name, value)  # pyright: ignore[reportUnknownMemberType]
 
 
-def build_before_send(config: SecureHeadersConfig) -> Callable[[Message, Scope], None]:
+def build_before_send(
+    config: SecureHeadersConfig,
+) -> Callable[[Message, Scope], Awaitable[None]]:
     """Build the ``before_send`` hook for ``config``.
 
     Headers are computed once here rather than per response.
@@ -40,14 +45,18 @@ def build_before_send(config: SecureHeadersConfig) -> Callable[[Message, Scope],
         config: The secure-headers configuration.
 
     Returns:
-        A hook adding the configured headers to ``http.response.start``.
+        An async hook adding the configured headers to ``http.response.start``.
     """
     static = config.response_headers()
     hsts = config.hsts_value()
     hsts_items = (("strict-transport-security", hsts),) if hsts else ()
     override = config.override
 
-    def secure_headers_hook(message: Message, scope: Scope) -> None:
+    # Async on purpose: Litestar runs a sync ``before_send`` hook in a worker
+    # thread for every ASGI message, body chunks included.
+    async def secure_headers_hook(  # noqa: RUF029
+        message: Message, scope: Scope
+    ) -> None:
         if message["type"] != "http.response.start":
             return
         headers = MutableScopeHeaders.from_message(message)
