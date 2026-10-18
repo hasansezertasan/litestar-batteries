@@ -10,6 +10,11 @@ from typing import TYPE_CHECKING, cast
 
 from litestar.datastructures import MutableScopeHeaders
 
+from litestar_batteries.secure_headers.models import (
+    _hsts_value,  # pyright: ignore[reportPrivateUsage]
+    _response_headers,  # pyright: ignore[reportPrivateUsage]
+)
+
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
@@ -47,8 +52,8 @@ def build_before_send(
     Returns:
         An async hook adding the configured headers to ``http.response.start``.
     """
-    static = config.response_headers()
-    hsts = config.hsts_value()
+    static = _response_headers(config)
+    hsts = _hsts_value(config)
     hsts_items = (("strict-transport-security", hsts),) if hsts else ()
     override = config.override
 

@@ -86,7 +86,7 @@ class SecureHeadersConfig:  # pylint: disable=too-many-instance-attributes
 
     def __post_init__(self) -> None:
         """Validate header values and the HSTS directive combination."""
-        for name, value in self.response_headers():
+        for name, value in _response_headers(self):
             _check_header_value(name, value)
         self._check_hsts()
 
@@ -111,44 +111,43 @@ class SecureHeadersConfig:  # pylint: disable=too-many-instance-attributes
             msg = "hsts_preload needs hsts_include_subdomains and a 1 year hsts_max_age"
             raise ValueError(msg)
 
-    def response_headers(self) -> tuple[tuple[str, str], ...]:
-        """Return the enabled static headers as lowercase ``(name, value)`` pairs.
 
-        Returns:
-            The headers sent on every response, excluding HSTS (see
-            :meth:`hsts_value`, which is conditional on the request scheme).
-        """
-        rows = (
-            (
-                "x-content-type-options",
-                "nosniff" if self.content_type_options else None,
-            ),
-            ("x-frame-options", self.frame_options),
-            ("content-security-policy", self.content_security_policy),
-            (
-                "content-security-policy-report-only",
-                self.content_security_policy_report_only,
-            ),
-            ("referrer-policy", self.referrer_policy),
-            ("permissions-policy", self.permissions_policy),
-            ("cross-origin-opener-policy", self.cross_origin_opener_policy),
-            ("cross-origin-resource-policy", self.cross_origin_resource_policy),
-            ("cross-origin-embedder-policy", self.cross_origin_embedder_policy),
-            ("x-permitted-cross-domain-policies", self.permitted_cross_domain_policies),
-        )
-        return tuple((name, value) for name, value in rows if value)
+def _response_headers(config: SecureHeadersConfig) -> tuple[tuple[str, str], ...]:
+    """Return the enabled static headers as lowercase ``(name, value)`` pairs.
 
-    def hsts_value(self) -> str | None:
-        """Return the ``Strict-Transport-Security`` value, or ``None`` if disabled.
+    Returns:
+        The headers sent on every response, excluding HSTS (see
+        :func:`_hsts_value`, which is conditional on the request scheme).
+    """
+    rows = (
+        ("x-content-type-options", "nosniff" if config.content_type_options else None),
+        ("x-frame-options", config.frame_options),
+        ("content-security-policy", config.content_security_policy),
+        (
+            "content-security-policy-report-only",
+            config.content_security_policy_report_only,
+        ),
+        ("referrer-policy", config.referrer_policy),
+        ("permissions-policy", config.permissions_policy),
+        ("cross-origin-opener-policy", config.cross_origin_opener_policy),
+        ("cross-origin-resource-policy", config.cross_origin_resource_policy),
+        ("cross-origin-embedder-policy", config.cross_origin_embedder_policy),
+        ("x-permitted-cross-domain-policies", config.permitted_cross_domain_policies),
+    )
+    return tuple((name, value) for name, value in rows if value)
 
-        Returns:
-            The assembled directive string.
-        """
-        if self.hsts_max_age is None:
-            return None
-        directives = [f"max-age={self.hsts_max_age}"]
-        if self.hsts_include_subdomains:
-            directives.append("includeSubDomains")
-        if self.hsts_preload:
-            directives.append("preload")
-        return "; ".join(directives)
+
+def _hsts_value(config: SecureHeadersConfig) -> str | None:  # pyright: ignore[reportUnusedFunction]
+    """Return the ``Strict-Transport-Security`` value, or ``None`` if disabled.
+
+    Returns:
+        The assembled directive string.
+    """
+    if config.hsts_max_age is None:
+        return None
+    directives = [f"max-age={config.hsts_max_age}"]
+    if config.hsts_include_subdomains:
+        directives.append("includeSubDomains")
+    if config.hsts_preload:
+        directives.append("preload")
+    return "; ".join(directives)
