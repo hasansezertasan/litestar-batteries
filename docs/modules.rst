@@ -33,4 +33,15 @@ Deduplicates retried unsafe requests carrying an ``Idempotency-Key`` header.
 .. automodule:: litestar_batteries.idempotency.plugin
 
 
+Secure headers (``litestar_batteries.secure_headers``)
+-------------------------------------------------------
+
+Helmet-style security response headers with safe defaults and per-field overrides.
+
+.. automodule:: litestar_batteries.secure_headers.hooks
+
+.. automodule:: litestar_batteries.secure_headers.models
+
+.. automodule:: litestar_batteries.secure_headers.plugin
+
 .. Document each new battery here as the project grows.

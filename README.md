@@ -284,6 +284,89 @@ IdempotencyConfig(scope=lambda request: request.headers.get("X-Tenant-Id", ""))
 headers (`set-cookie`,
 `authorization`, hop-by-hop) are intentionally excluded from replays.
 
+### Secure headers
+
+A helmet-style bundle of HTTP security response headers with safe defaults. Add
+`SecureHeadersPlugin` and every response (including router `404`/`405` and `500` errors)
+gets the headers below; change or disable any of them per field.
+
+```python
+from litestar import Litestar
+
+from litestar_batteries import SecureHeadersConfig, SecureHeadersPlugin
+
+app = Litestar(
+    route_handlers=[...],
+    plugins=[SecureHeadersPlugin(SecureHeadersConfig(referrer_policy="no-referrer"))],
+)
+```
+
+#### Precedence
+
+A header the handler already set is left alone, so a single route can loosen a policy
+(for example a looser `Content-Security-Policy` on one page). Set `override=True` to make the
+battery replace handler-set values instead.
+
+#### HSTS
+
+`Strict-Transport-Security` is sent only on HTTPS requests, with `max-age=31536000` (one year) by
+default; browsers ignore it over plain HTTP. `includeSubDomains` and `preload` are separate
+opt-ins, and `preload` requires `includeSubDomains` and a max-age of at least one year (it is
+hard to undo once your domain is on the preload list). When rolling HSTS out, start with a small
+`hsts_max_age` first. Behind a TLS-terminating proxy, run the server with proxy headers enabled so
+the ASGI scheme is `https`. Set `hsts_max_age=None` to disable it.
+
+#### Content-Security-Policy
+
+The default policy only restricts framing, `<base>`, form targets and plugins
+(`frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`). It has no
+`default-src`/`script-src`, because Litestar's OpenAPI UIs (Swagger, Scalar, Redoc, ...) use
+inline scripts and CDN hosts and a strict policy would break `/schema`. Supply a full policy
+for your own pages, for example:
+
+```python
+SecureHeadersConfig(content_security_policy="default-src 'self'; img-src 'self' data:")
+```
+
+`frame-ancestors` takes precedence over `X-Frame-Options` in modern browsers, so to allow
+same-origin framing set both `frame_options="SAMEORIGIN"` and a policy containing
+`frame-ancestors 'self'`.
+
+If you serve the OpenAPI UI too, set a looser policy on those routes via a handler header
+(handler-set headers win by default) or keep the default. Use
+`content_security_policy_report_only` to trial a policy without enforcing it (it needs a
+`report-to`/`report-uri` directive to be useful).
+
+#### Not managed
+
+`X-XSS-Protection` is deprecated and is never sent. `Cache-Control`, `Clear-Site-Data`,
+`X-DNS-Prefetch-Control`, `Origin-Agent-Cluster`, CSP nonces and per-path rule sets are out of
+scope.
+
+#### Configuration
+
+`SecureHeadersConfig` fields (set a header field to `None` to omit it):
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `hsts_max_age` | `int \| None` | `31536000` | `Strict-Transport-Security` max-age, HTTPS only; `None` disables HSTS. |
+| `hsts_include_subdomains` | `bool` | `False` | Add `includeSubDomains`. |
+| `hsts_preload` | `bool` | `False` | Add `preload` (needs `includeSubDomains` and max-age >= 1 year). |
+| `content_type_options` | `bool` | `True` | `X-Content-Type-Options: nosniff`. |
+| `frame_options` | `"DENY" \| "SAMEORIGIN" \| None` | `"DENY"` | `X-Frame-Options`. |
+| `content_security_policy` | `str \| None` | baseline above | `Content-Security-Policy`. |
+| `content_security_policy_report_only` | `str \| None` | `None` | `Content-Security-Policy-Report-Only`. |
+| `referrer_policy` | `str \| None` | `"strict-origin-when-cross-origin"` | `Referrer-Policy`. |
+| `permissions_policy` | `str \| None` | `"camera=(), microphone=(), geolocation=()"` | `Permissions-Policy`. |
+| `cross_origin_opener_policy` | `str \| None` | `"same-origin"` | `Cross-Origin-Opener-Policy`. |
+| `cross_origin_resource_policy` | `str \| None` | `None` | `Cross-Origin-Resource-Policy` (opt-in: it blocks cross-origin embedding of your assets). |
+| `cross_origin_embedder_policy` | `str \| None` | `None` | `Cross-Origin-Embedder-Policy` (opt-in). |
+| `permitted_cross_domain_policies` | `str \| None` | `"none"` | `X-Permitted-Cross-Domain-Policies`. |
+| `override` | `bool` | `False` | Replace headers a handler already set. |
+
+Invalid values (control characters such as line breaks, non-latin-1 characters, a negative max-age, or `preload` without its
+prerequisites) raise `ValueError` when the config is created.
+
 ## Support :heart:
 
 If you have any questions or need help, feel free to open an issue on the [GitHub repository][litestar-batteries].
