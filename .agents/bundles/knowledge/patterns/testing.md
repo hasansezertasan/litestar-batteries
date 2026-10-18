@@ -13,3 +13,6 @@ tags: [testing, pytest, litestar]
 - **Every review-found defect gets a regression test that fails before the fix** (Red → Green); include it in the same commit as the fix so each commit stays green.
 - **Test strength:** a test for "unbounded by default" must use a slow check, not an instant one, or it can't catch an accidental finite default. Memory-bound claims can be verified with `tracemalloc`.
 - Unit-test internal helpers (e.g. request buffering with chunked bodies and disconnects) directly when the public path can't reach an edge case.
+- **Assert each default with a test that would catch a wrong default**, and test hooks against 200, router 404 and 405, and handler-raised 500, not only the happy path.
+- **Typing `**kwargs` in test helpers:** use `dict[str, Any]` to satisfy ty/pyright.
+- **`tox -e style` also runs ty, pyrefly, zuban, pylint, semgrep, slotscheck and vulture**, not just ruff/mypy/pyright; run it before declaring a battery done.

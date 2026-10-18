@@ -15,3 +15,6 @@ tags: [async, asgi, python]
 - **After replaying buffered request events, delegate to the server's original `receive()`.** Synthesizing endless terminal events breaks disconnect watchers (they never block or see `http.disconnect`) and can hot-loop.
 - **Check prospective size before copying a chunk** into any buffer — a server can deliver a chunk larger than the cap in one event.
 - **A per-worker `asyncio.Lock` is needed around get→set windows** whenever an `await` (e.g. body buffering) sits between them, even if the store calls themselves don't yield.
+- **`before_send` hooks must be `async def`.** Litestar thread-dispatches sync hooks for every ASGI message, body chunks included. Silence ruff `RUF029` with a justified `# noqa`. Filter on `message["type"] == "http.response.start"`; the hook sees every outgoing message type.
+- **Route-level ASGI middleware never sees router 404/405**; `before_send` does. Pick `before_send` for anything that must decorate every HTTP response.
+- **`MutableScopeHeaders.__setitem__` leaves stale duplicates when 3+ copies of a header exist.** To replace, `del headers[name]` (removes all copies), then `headers.add(name, value)`. `from_message` needs a `headers` key; ASGI makes it optional, so default it first. `scope["scheme"]` is optional (default `http`).

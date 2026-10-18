@@ -9,6 +9,10 @@ tags: [log, history]
 
 > Commit SHAs come from task close records. SHAs given with a PR number are on `main`; the rest are pre-squash branch commits that may only survive on their feature branch.
 
+## 2026-10-18
+
+- **secure-headers-battery (flow, 4 tasks; issue #14):** `SecureHeadersPlugin` + `SecureHeadersConfig`, a helmet-style `before_send` hook setting curated security headers with safe defaults (HTTPS-only 1-year HSTS, non-breaking baseline CSP, handler-wins precedence with `override`), validated config, README + Sphinx docs, import-linter entry. Tasks: config/scaffold `daa6ae3`; hook `c63ff67`; plugin + integration tests `893a394`; README `cca7788`; review fixes `9aff046`. Merged as #38. Open follow-ups: quality-review Minors QR-1 (redundant tests), QR-2 (make `response_headers()`/`hsts_value()` private helpers), QR-3 (README wording); the repo-wide `litestar>=2` lower bound is inaccurate (`InitPlugin` absent in 2.0.0).
+
 ## 2026-10-09
 
 - **setup:** Migrated the legacy flat `.agents/` layout and the Beads tracker (`.beads/issues.jsonl`, 36 records, all closed) to OKF v0.2 bundles. Completed-flow history below was synthesized from the archived specs, `learnings.md` files, and Beads close reasons; knowledge was resynthesized into `knowledge/`. Mapping: `.agents/migration-inventory.json`.
