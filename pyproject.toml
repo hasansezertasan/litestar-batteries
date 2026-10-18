@@ -273,7 +273,9 @@ ignore_decorators = [
 # (middleware contract), and ``owner`` (write-only reservation token, compared
 # inside Lua scripts and byte equality, never read back). ``anyio_backend`` is
 # a pytest fixture resolved by name through the anyio plugin.
-ignore_names = ["CONFIG_FILE_PATH", "anyio_backend", "error", "logger", "main", "model_config", "on_app_init", "owner", "pytest_*", "collect_ignore_glob", "scopes"]
+# ``MutableMapping`` is imported for a string-form ``cast`` in the secure-headers
+# hook, which vulture does not read as a use.
+ignore_names = ["CONFIG_FILE_PATH", "anyio_backend", "error", "logger", "main", "model_config", "MutableMapping", "on_app_init", "owner", "pytest_*", "collect_ignore_glob", "scopes"]
 min_confidence = 60
 paths = ["src", "tests"]
 
