@@ -12,7 +12,7 @@ Current-state reference for how `litestar-batteries` is structured. Read alongsi
 ## What this is
 
 A **library** (no CLI, no `[project.scripts]`) of reusable, first-party-flavored Litestar
-utilities ("batteries"). Runtime deps: `litestar>=2,<3`, `msgspec`, and `typing_extensions`
+utilities ("batteries"). Runtime deps: `litestar>=2.15,<3` (`InitPlugin` first ships in litestar 2.15.0), `msgspec`, and `typing_extensions`
 (all direct, justified in `product/tech-stack.md`). `src/` layout,
 `litestar_batteries` package, ships `py.typed`. Built with `hatchling` + `hatch-vcs`
 (version dynamic, from Git tags).

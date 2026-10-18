@@ -38,7 +38,7 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-  "litestar>=2,<3",
+  "litestar>=2.15,<3",
   "msgspec",
   "typing-extensions==4.16.0",
 ]
