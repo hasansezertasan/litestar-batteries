@@ -112,7 +112,7 @@ Decided by the planner from the research (change via `revise` if disputed):
 
 ### Phase 1: Battery implementation
 
-- [x] 1.1 Add `SecureHeadersConfig`, package scaffold and import-linter entry (`behavior_tdd`) (daa6ae3)
+- [x] 1.1 Add `SecureHeadersConfig`, package scaffold and import-linter entry (`behavior_tdd`) (daa6ae33241c1f297f834da627e6f1b02e0c5a62)
 - [x] 1.2 Add the `before_send` hook with precedence, HSTS and message filtering (`behavior_tdd`) (c63ff67)
 - [x] 1.3 Add `SecureHeadersPlugin`, public exports and app-level integration tests (`behavior_tdd`) (893a394)
 
