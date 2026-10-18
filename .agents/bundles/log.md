@@ -11,7 +11,7 @@ tags: [log, history]
 
 ## 2026-10-18
 
-- **secure-headers-battery (flow, 4 tasks; issue #14):** `SecureHeadersPlugin` + `SecureHeadersConfig`, a helmet-style `before_send` hook setting curated security headers with safe defaults (HTTPS-only 1-year HSTS, non-breaking baseline CSP, handler-wins precedence with `override`), validated config, README + Sphinx docs, import-linter entry. Tasks: config/scaffold `daa6ae3`; hook `c63ff67`; plugin + integration tests `893a394`; README `cca7788`; review fixes `9aff046`. Merged as #38. Open follow-ups: quality-review Minors QR-1 (redundant tests), QR-2 (make `response_headers()`/`hsts_value()` private helpers), QR-3 (README wording); the repo-wide `litestar>=2` lower bound is inaccurate (`InitPlugin` absent in 2.0.0).
+- **secure-headers-battery (flow, 4 tasks; issue #14):** `SecureHeadersPlugin` + `SecureHeadersConfig`, a helmet-style `before_send` hook setting curated security headers with safe defaults (HTTPS-only 1-year HSTS, non-breaking baseline CSP, handler-wins precedence with `override`), validated config, README + Sphinx docs, import-linter entry. Tasks: config/scaffold `daa6ae33241c1f297f834da627e6f1b02e0c5a62`; hook `c63ff67`; plugin + integration tests `893a394`; README `cca7788`; review fixes `9aff046`. Merged as #38. Open follow-ups: quality-review Minors QR-1 (redundant tests), QR-2 (make `response_headers()`/`hsts_value()` private helpers), QR-3 (README wording); the repo-wide `litestar>=2` lower bound is inaccurate (`InitPlugin` absent in 2.0.0).
 
 ## 2026-10-09
 
