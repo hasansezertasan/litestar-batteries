@@ -38,7 +38,7 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-  "litestar>=2,<3",
+  "litestar>=2.19,<3",
   "msgspec",
   "typing-extensions==4.16.0",
 ]
@@ -509,6 +509,9 @@ env_list = [
   "3.12",
   "3.11",
   "3.10",
+  # Oldest supported litestar (see [tool.tox.env.floor]); CI adds it to the
+  # ubuntu test-core tox_args.
+  "floor",
 ]
 requires = ["tox>=4"]
 
@@ -544,6 +547,31 @@ package = "wheel"
 # `use_frozen_constraints` never reaches its `uv pip install`), so a newer
 # release could float in and clash with a pinned tool such as semgrep.
 runner = "uv-venv-lock-runner"
+
+
+[tool.tox.env.floor]
+# Tests the oldest supported litestar. The pin must equal the lower bound of
+# `litestar` in [project].dependencies (`InitPlugin` first ships in 2.15.0 and
+# litestar declares its `sniffio` dependency from 2.19.0).
+# Unlike every other env this must NOT use the lock runner: the lock pins a
+# newer litestar. The plain runner installs `deps` first, but it then installs
+# the project's own `litestar>=2.19,<3` requirement, which UPGRADES a pin below
+# the bound (the env would silently test the newest litestar). `commands_pre`
+# runs after every install step, so the assertion below fails the env instead.
+base_python = ["3.10"]
+# Keep this assertion, the `deps` pin and the [project] lower bound equal.
+commands_pre = [
+  [
+    "python",
+    "-c",
+    "import importlib.metadata as m, sys; v = m.version('litestar'); sys.exit(0 if v == '2.19.0' else f'floor env must test litestar 2.19.0 but found {v}: keep the deps pin, this assertion and the [project] litestar lower bound in sync')",
+  ],
+]
+deps = [
+  "litestar==2.19.0",
+]
+description = "Run the tests against the oldest supported litestar (2.19.0)"
+runner = "uv-venv-runner"
 
 
 [tool.tox.env.style]

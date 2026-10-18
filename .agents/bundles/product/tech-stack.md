@@ -10,7 +10,7 @@ tags: [tech-stack, python, tooling]
 <!-- truth: start -->
 - **Language:** Python (`requires-python = ">=3.10"`); tox envs across 3.10–3.14
   (full range on Linux; default interpreter on macOS/Windows)
-- **Framework:** Litestar — runtime dependencies `litestar>=2,<3`, `msgspec`,
+- **Framework:** Litestar — runtime dependencies `litestar>=2.19,<3`, `msgspec`,
   and `typing_extensions` (for `@override` markers on framework subclass hooks;
   stdlib `typing.override` needs 3.12). All three are direct and documented.
 - **Package manager:** `uv` (`uv.lock` committed; everything runs `--locked`)

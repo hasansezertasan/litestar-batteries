@@ -18,7 +18,7 @@ invocation below uses `--locked` for reproducible installs.
 **Canonical verify** (identical locally and in CI):
 
 ```bash
-uv run --locked tox run                 # style + docs-doctest + version matrix
+uv run --locked tox run                 # style + docs-doctest + version matrix + floor
 uv run --locked tox run -e style        # ruff, 5 type checkers, pylint, slotscheck, ...
 uv run --locked tox run -e prek         # git hooks (prek)
 uv run --locked pytest tests/test_smoke.py -v   # one file, fast
@@ -70,6 +70,10 @@ uv run --locked pytest tests/test_smoke.py -v   # one file, fast
 - Jobs: `changes` (path filter), `hooks` (prek), `style` (the full
   lint/type/docs-lint battery), `docs-doctest`, `test-core` (tox version matrix
   per OS). Mirrors the local canonical verify exactly.
+- The ubuntu `test-core` cell also runs the `floor` env (litestar 2.19.0 on
+  Python 3.10, via `uv-venv-runner` instead of the lock runner); its `deps` pin
+  and `commands_pre` version assertion mirror the `[project]` `litestar` lower
+  bound and change together with it.
 - Actions are **pinned by commit SHA** with a version comment;
   Renovate keeps them current.
 - All jobs run `uv sync --locked` for reproducible installs; the committed

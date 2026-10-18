@@ -67,7 +67,7 @@ True
 
 Reusable, first-party-flavored plugins that cut the boilerplate you'd otherwise
 re-write on every production service. Fully typed (ships `py.typed`), targets
-**Litestar 2.x** on **Python 3.10+**, and leans on the standard library plus
+**Litestar 2.19+** on **Python 3.10+**, and leans on the standard library plus
 deliberate, documented dependencies.
 
 ### Health check
