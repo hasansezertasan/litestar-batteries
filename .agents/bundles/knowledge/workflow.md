@@ -10,7 +10,7 @@ tags: [workflow, commands, developer-guide]
 <!-- truth: start -->
 - Task files under `.agents/bundles/specs/<flow_id>/tasks/` are authoritative; `spec.md` is the synchronized checklist and continuity view.
 - Setup `uv sync`; aggregate verify `uv run --locked tox run` (style gate, docs
-  doctests, version matrix; 99% coverage gate). CI runs the same tox envs across
+  doctests, version matrix + litestar floor; 99% coverage gate). CI runs the same tox envs across
   the OS/Python matrix.
 - Tech-stack changes are documented in `product/tech-stack.md` before implementation (Document-Driven Development).
 - Every task declares and justifies one `verification_strategy`; only observable behavior and defect correction require an initial failing test.
@@ -30,7 +30,7 @@ uv run --locked ruff check --no-fix .    # lint (gate ruff BEFORE any fix pass)
 uv run --locked ruff format --check .    # format check
 uv run --locked mypy                     # type check (strict; no path argument)
 uv run --locked tox run -e style         # full lint/type/docs-lint battery
-uv run --locked tox run                  # aggregate verify (style + doctest + matrix)
+uv run --locked tox run                  # aggregate verify (style + doctest + matrix + floor)
 ```
 
 Use non-interactive modes in automation. Before claiming a result, run the exact command freshly, read its complete output and exit status, and report limitations.

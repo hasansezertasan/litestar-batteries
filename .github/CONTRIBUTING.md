@@ -162,7 +162,11 @@ uv run --locked --group prek prek install
 Common tasks are exposed as mise tasks (`mise run test`, `mise run style`,
 `mise run lint`, `mise run format`, …); run `mise tasks` to list them. The full
 lint/type-check suite is `uv run --locked tox run -e style`, and the fast git
-hook gate is `uv run --locked tox run -e prek`.
+hook gate is `uv run --locked tox run -e prek`. `uv run --locked tox run -e floor`
+runs the suite against the oldest supported litestar (2.15.0, Python 3.10); when
+you raise the `litestar` lower bound in `pyproject.toml`, update the pin and the
+version assertion in `[tool.tox.env.floor]` to match; the pin, the assertion and
+the bound change together.
 
 GitHub Copilot's coding agent runs `.github/workflows/copilot-setup-steps.yml`
 before it starts work, which installs this same toolchain and syncs dependencies
