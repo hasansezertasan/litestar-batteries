@@ -165,8 +165,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # floor = litestar==2.15.0 on Python 3.10 (see [tool.tox.env.floor]);
+        # ubuntu only, it is not an OS axis.
         include:
-          - {os: ubuntu-latest, tox_args: "-e 3.14,3.13,3.12,3.11,3.10"}
+          - {os: ubuntu-latest, tox_args: "-e 3.14,3.13,3.12,3.11,3.10,floor"}
           - {os: macos-latest, tox_args: "-e py"}
           - {os: windows-latest, tox_args: "-e py"}
     runs-on: ${{ matrix.os }}
