@@ -2,14 +2,14 @@
 type: Spec
 flow_id: secure-headers-battery
 title: Secure-headers battery
-state: active
+state: completed
 plan_revision: 1
 plan_commit: null
 state_revision: 0
 current_task: null
 last_operation: null
 operation_targets: []
-last_verified_checkpoint: null
+last_verified_checkpoint: "9aff046: tox run green 3.10-3.14 + style + docs-doctest; correctness review a6f1f16 (fixed in 9aff046); quality review 9aff046: 0 Critical/Important, 3 Minor logged in learnings.md"
 created_at: 2026-10-16T01:50:00Z
 updated_at: 2026-10-16T01:50:00Z
 description: Add SecureHeadersPlugin and SecureHeadersConfig, a helmet-style plugin that sets curated HTTP security response headers with safe defaults and per-field overrides (GitHub issue #14).
@@ -126,8 +126,8 @@ Decided by the planner from the research (change via `revise` if disputed):
 
 ## Continuity Snapshot
 
-- Lifecycle: active; all four tasks closed, awaiting review/finish. Current task: none. Claimant: none. Last verified checkpoint: none.
+- Lifecycle: completed on branch feat/secure-headers-battery (final functional commit 9aff046); all tasks closed. Current task: none. Claimant: none. Last verified checkpoint: none.
 - Decisions: D1-D8 above. Plan revision 1; state revision 0.
 - Discoveries: Litestar 2.24 route-level middleware misses router 404/405 (research F4); `before_send` does not.
-- Blockers: none. Next exact step: `flow-review`/`flow-finish secure-headers-battery`, then open the PR.
+- Blockers: none. Next exact step: archive (`flow-archive`) and/or open the PR (needs user approval).
 - Rule/knowledge paths: `AGENTS.md`, `.agents/bundles/knowledge/patterns/battery-design.md`, `.agents/bundles/knowledge/patterns/testing.md`, `.agents/bundles/knowledge/workflow.md`.
