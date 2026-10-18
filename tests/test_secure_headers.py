@@ -393,3 +393,12 @@ def test_plugin_ordering_with_user_hook_setting_csp(*, override: bool) -> None:
     with _client(_ok, config=config, before_send=[user_csp]) as client:
         csp = client.get("/ok").headers["content-security-policy"]
     assert csp == (DEFAULT_CSP if override else "user")
+
+
+@pytest.mark.anyio
+async def test_hook_handles_start_message_without_headers() -> None:
+    """ASGI makes ``headers`` optional; a bare start message still gets headers."""
+    hook = build_before_send(SecureHeadersConfig())
+    message: dict[str, Any] = {"type": "http.response.start", "status": 200}
+    await _send(hook, message, {"type": "http", "scheme": "http"})
+    assert _names(message)[b"x-content-type-options"] == b"nosniff"

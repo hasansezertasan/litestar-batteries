@@ -6,12 +6,12 @@ covers router-level 404/405 responses that route middleware never sees.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from litestar.datastructures import MutableScopeHeaders
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
+    from collections.abc import Awaitable, Callable, MutableMapping
 
     from litestar.types import Message, Scope
 
@@ -59,6 +59,10 @@ def build_before_send(
     ) -> None:
         if message["type"] != "http.response.start":
             return
+        # ASGI makes ``headers`` optional but Litestar's types require it, and
+        # ``from_message`` raises without the key.
+        raw = cast("MutableMapping[str, object]", cast("object", message))
+        _ = raw.setdefault("headers", [])
         headers = MutableScopeHeaders.from_message(message)
         _apply(headers, static, override=override)
         # ASGI makes ``scheme`` optional (default ``http``).
