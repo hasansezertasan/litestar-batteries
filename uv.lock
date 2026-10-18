@@ -1513,7 +1513,7 @@ tool = [
 
 [package.metadata]
 requires-dist = [
-    { name = "litestar", specifier = ">=2.15,<3" },
+    { name = "litestar", specifier = ">=2.19,<3" },
     { name = "msgspec" },
     { name = "typing-extensions", specifier = "==4.16.0" },
 ]
