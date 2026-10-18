@@ -30,6 +30,7 @@ src/litestar_batteries/
     controller.py        # build_<x>_controller(config) -> type[Controller]  (factory, kept internal)
     plugin.py            # <X>Plugin(InitPlugin) — the public entry point
     middleware.py        # (middleware batteries) <X>Middleware(ASGIMiddleware)
+    hooks.py             # (hook batteries) build_<x>(config) -> before_send hook (internal)
 ```
 
 ## The battery pattern
@@ -126,3 +127,50 @@ directly to `app_config.middleware` (no `DefineMiddleware` wrapper needed on Lit
 - Errors are RFC 9457 problem+json with `urn:litestar-batteries:idempotency:*` types.
 - Public types: `IdempotencyPlugin`, `IdempotencyConfig`, `AtomicClaim`, `RedisAtomicClaim`.
 - Deferred: HMAC fingerprint, lease renewal, metrics, per-route `no-store` opt-out.
+
+## The secure-headers battery
+
+`litestar_batteries.secure_headers` — `SecureHeadersPlugin(SecureHeadersConfig())` stamps curated HTTP
+security response headers (helmet-style) with safe defaults and per-field overrides. It is a **hook
+battery**: `on_app_init` appends `build_before_send(config)` (`hooks.py`, internal) to
+`app_config.before_send`, preserving user hooks, and the hook acts only on `http.response.start`.
+A `before_send` hook is used instead of route middleware because it also covers router-level
+404/405 responses; websocket scopes and body messages pass through untouched. Headers are computed once
+at plugin init, not per response.
+
+- **Config** (`SecureHeadersConfig`, validated in `__post_init__` with `ValueError`). Each field set to
+  `None` (or `False` for flags) disables its header:
+
+  | Field | Header | Default |
+  |---|---|---|
+  | `hsts_max_age` (+ `hsts_include_subdomains`, `hsts_preload`) | `Strict-Transport-Security` | `31536000`, no subdomains/preload |
+  | `content_type_options` | `X-Content-Type-Options: nosniff` | `True` |
+  | `frame_options` | `X-Frame-Options` | `"DENY"` |
+  | `content_security_policy` | `Content-Security-Policy` | `frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'` |
+  | `content_security_policy_report_only` | `Content-Security-Policy-Report-Only` | `None` |
+  | `referrer_policy` | `Referrer-Policy` | `"strict-origin-when-cross-origin"` |
+  | `permissions_policy` | `Permissions-Policy` | `"camera=(), microphone=(), geolocation=()"` |
+  | `cross_origin_opener_policy` | `Cross-Origin-Opener-Policy` | `"same-origin"` |
+  | `cross_origin_resource_policy` | `Cross-Origin-Resource-Policy` | `None` (blocks cross-origin embedding, so opt-in) |
+  | `cross_origin_embedder_policy` | `Cross-Origin-Embedder-Policy` | `None` |
+  | `permitted_cross_domain_policies` | `X-Permitted-Cross-Domain-Policies` | `"none"` |
+
+- **Precedence** (`override: bool = False`): handler-set headers win (`setdefault`, names matched case-insensitively);
+  `override=True` forces the battery's values by deleting every existing copy, then adding.
+- **HSTS** is emitted only when `scope["scheme"] == "https"` (RFC 6797: never over insecure transport);
+  the value is `max-age=N[; includeSubDomains][; preload]`. `preload` is never implicit and requires
+  `includeSubDomains` and `max-age >= 31536000`. Behind a proxy, run the server with proxy headers so
+  `scope["scheme"]` is correct.
+- **CSP baseline** uses only non-fetch directives (no `default-src`/`script-src`), so the OpenAPI UIs
+  (inline scripts, CDN hosts, no nonces) keep working. A strict policy needs a relaxed policy on the
+  OpenAPI routes. `frame-ancestors` overrides `X-Frame-Options` in modern browsers; document them together.
+- **Validation:** header values reject control characters (other than tab) and non-latin-1; `hsts_max_age >= 0`; HSTS directives
+  without `hsts_max_age` are an error.
+- `X-XSS-Protection` is never emitted (deprecated).
+- Public types: `SecureHeadersPlugin`, `SecureHeadersConfig`.
+- Not managed: `Cache-Control: no-store`, `Clear-Site-Data` and `COEP: require-corp` are application-semantic,
+  so never blanket defaults. `Content-Security-Policy-Report-Only` is only useful with `report-to`/`report-uri`.
+- Deferred: `X-DNS-Prefetch-Control`, `Origin-Agent-Cluster`, `X-Download-Options`, per-path rule sets,
+  CSP nonces, trusted-proxy-aware scheme detection.
+- Unverified: hook behavior on websocket scopes (the hook ignores non-`http.response.start` messages by
+  construction, but it is untested there) and Redoc `blob:`/`fonts.gstatic.com` needs under a strict CSP.

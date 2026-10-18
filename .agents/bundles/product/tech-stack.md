@@ -37,7 +37,7 @@ Declared in `[dependency-groups]` + `[tool.*]` of `pyproject.toml`:
   `tests/conftest.py`), branch coverage with a hard `fail_under=99` gate;
   the root `README.md` snippets run as doctests.
 - **Architecture:** `import-linter` exhaustive layers contract — each battery is
-  an independent sibling layer (`health | idempotency`); new batteries extend it.
+  an independent sibling layer (`health | idempotency | secure_headers`); new batteries extend it.
 - **Docs:** Sphinx (Shibuya theme) with a warning-allowlist gate, doctest
   builder, and versioned GitHub Pages deploys.
 - **Canonical verify:** `uv run --locked tox run` (style + doctest + version

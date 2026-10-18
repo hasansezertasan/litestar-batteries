@@ -16,3 +16,6 @@ tags: [architecture, litestar, plugins]
 - **Use Litestar's `Store` registry for state** (`scope["app"].stores.get(name)`), so Redis is a config swap. The `Store` ABC has no atomic CAS: anything needing a real cross-process claim gets a separate opt-in protocol (e.g. `AtomicClaim`) rather than a Store method, and the best-effort default is documented plainly.
 - **Survey prior art and the governing spec** (IETF drafts, RFC 9457 for errors) before designing a battery; record deferred items explicitly.
 - **Verify external APIs before planning:** confirm current Litestar (or any library) API via docs and the installed version; confirm a pinned action tag exists via `git ls-remote`.
+- **Hook batteries** (`secure_headers/hooks.py::build_before_send`) append to `app_config.before_send` rather than replacing it, so user hooks keep running; precompute everything static at plugin init.
+- **Validate config in `__post_init__` and raise `ValueError`**, so mistakes surface at app construction, not on the first request.
+- **A new battery must be added to the import-linter `layers` sibling list in the same commit that creates the package** (`health | idempotency | secure_headers`), or `tox run -e style` fails.

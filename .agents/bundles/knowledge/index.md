@@ -11,7 +11,7 @@ tags: [knowledge, index]
 
 | Chapter | Covers |
 |---------|--------|
-| [architecture.md](architecture.md) | Library shape, package layout, the battery/`InitPlugin` pattern, the health and idempotency batteries |
+| [architecture.md](architecture.md) | Library shape, package layout, the battery/`InitPlugin` pattern, the health, idempotency and secure-headers batteries |
 | [conventions.md](conventions.md) | Toolchain, strict typing, testing, CI, packaging/versioning, repo/harness notes |
 | [workflow.md](workflow.md) | Canonical commands, Flow task lifecycle, verification strategies, quality gates |
 | [patterns/](patterns/index.md) | Elevated patterns and gotchas by topic |

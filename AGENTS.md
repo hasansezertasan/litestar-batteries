@@ -54,7 +54,7 @@ The layering is enforced in CI by import-linter (`[tool.importlinter]` in
 its `layers` fails `tox run -e style`.
 
 Adding a battery is an architecture change: add it to the import-linter contract
-in the same PR (as a sibling in the `health | idempotency` list).
+in the same PR (as a sibling in the `layers` list).
 
 ## Key Conventions
 
