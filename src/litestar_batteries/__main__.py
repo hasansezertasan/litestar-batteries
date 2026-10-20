@@ -2,11 +2,13 @@
 
 This is the single runnable entrypoint used by ``python -m litestar_batteries``
 and by every standalone-executable build (PyCrucible launcher, PyInstaller
-freezer, Nuitka compiler — see ADR-007). The build tools all target this file,
+freezer, Nuitka compiler).
+The build tools all target this file,
 so the component-selection logic lives here and nowhere else.
 
 When a ``litestar_batteries`` console root exists (``include_console_root`` —
-the CLI, or ≥2 components sharing a launcher; see ADR-019), ``main()`` runs it,
+the CLI, or ≥2 components sharing a launcher),
+``main()`` runs it,
 which dispatches to the primary component by default and to each secondary via a
 subcommand. Otherwise the single enabled component with the highest precedence —
 CLI > GUI > TUI > web > MCP > worker — is wired to ``main()`` directly at
@@ -16,7 +18,8 @@ import/``main`` binding here directly. With no runnable component enabled,
 ``main()`` exits non-zero with an explanatory message.
 
 Either binding routes its import through a loader that turns a missing
-dependency into one actionable line instead of a traceback (ADR-028). This is
+dependency into one actionable line instead of a traceback.
+This is
 the boundary that needs it most: a standalone executable's user has no console
 root to fall back on and no obvious way to read a Python stack trace.
 """

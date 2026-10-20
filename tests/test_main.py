@@ -10,8 +10,8 @@ import pytest
 def test_main_is_callable() -> None:
     """The package exposes a callable ``main()`` entrypoint.
 
-    Every standalone-executable build (launcher / freezer / compiler — see
-    ADR-007) targets ``litestar_batteries.__main__:main``, so this pins the
+    Every standalone-executable build (launcher / freezer / compiler)
+    targets ``litestar_batteries.__main__:main``, so this pins the
     contract that the symbol exists and is callable for whichever component is
     enabled, and that the active branch's component import actually resolves.
     The module is imported (not executed as ``__main__``), so a runnable
