@@ -37,7 +37,7 @@ uv run --locked pytest tests/test_smoke.py -v   # one file, fast
 ## Typing (strict, `py.typed`)
 
 - mypy `strict=true`, basedpyright/ty/pyrefly/zuban fully clean with zero
-  warnings, all pinned to Python 3.10 semantics.
+  warnings, all pinned to Python 3.11 semantics.
 - **`src` avoids `Any` in annotations.** Litestar leaves user/auth/state generics
   to the application, so the single `AnyRequest = Request[Any, Any, Any]` alias
   (in `idempotency/models.py`) keeps the intentionally-untyped request form in
@@ -71,7 +71,7 @@ uv run --locked pytest tests/test_smoke.py -v   # one file, fast
   lint/type/docs-lint battery), `docs-doctest`, `test-core` (tox version matrix
   per OS). Mirrors the local canonical verify exactly.
 - The ubuntu `test-core` cell also runs the `floor` env (litestar 2.19.0 on
-  Python 3.10, via `uv-venv-runner` instead of the lock runner); its `deps` pin
+  Python 3.11, via `uv-venv-runner` instead of the lock runner); its `deps` pin
   and `commands_pre` version assertion mirror the `[project]` `litestar` lower
   bound and change together with it.
 - Actions are **pinned by commit SHA** with a version comment;

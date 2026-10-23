@@ -33,15 +33,14 @@ async def _raise_timeout() -> None:
     """Raise the check's own timeout error (not the wrapper deadline).
 
     Raises:
-        asyncio.TimeoutError: The simulated upstream client timeout.
+        TimeoutError: The simulated upstream client timeout.
     """
     # A check whose own dependency (db/http client) timed out, surfaced as
-    # asyncio.TimeoutError — the SAME type wait_for raises for its deadline, so
-    # the readiness handler must not conflate the two. (On 3.10 asyncio.TimeoutError
-    # is distinct from builtin TimeoutError; raise the exact type to be version-proof.)
+    # TimeoutError — the SAME type wait_for raises for its deadline, so
+    # the readiness handler must not conflate the two.
     await asyncio.sleep(0)
     msg = "upstream db timeout"
-    raise asyncio.TimeoutError(msg)
+    raise TimeoutError(msg)
 
 
 def test_liveness_always_ok() -> None:

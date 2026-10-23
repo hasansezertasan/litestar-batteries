@@ -5,7 +5,7 @@ Guidance for AI coding agents working in this repository.
 **litestar-batteries** — a "batteries-included" utility collection for Litestar
 applications: reusable, first-party-flavored plugins (health-check, idempotency,
 ...) that reduce boilerplate in production Litestar services. It is a **library**
-(no CLI), targets **Litestar 2.x** on **Python 3.10+**, and ships `py.typed`.
+(no CLI), targets **Litestar 2.x** on **Python 3.11+**, and ships `py.typed`.
 
 ## Planning Context
 

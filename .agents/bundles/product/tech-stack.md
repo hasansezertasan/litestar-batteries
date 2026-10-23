@@ -8,7 +8,7 @@ tags: [tech-stack, python, tooling]
 # Tech Stack
 
 <!-- truth: start -->
-- **Language:** Python (`requires-python = ">=3.10"`); tox envs across 3.10–3.14
+- **Language:** Python (`requires-python = ">=3.11"`); tox envs across 3.11–3.14
   (full range on Linux; default interpreter on macOS/Windows)
 - **Framework:** Litestar — runtime dependencies `litestar>=2.19,<3`, `msgspec`,
   and `typing_extensions` (for `@override` markers on framework subclass hooks;
@@ -30,7 +30,7 @@ Declared in `[dependency-groups]` + `[tool.*]` of `pyproject.toml`:
 - **Lint & format:** `ruff` (line-length 88, `fix=true` + `unsafe-fixes=true`,
   `select=ALL`, preview rules on). Gate with `ruff check --diff` before letting
   it fix: the first fix pass rewrites `src/**` in place.
-- **Type checking:** `mypy` strict (runs for 3.10, 3.14, win32, darwin),
+- **Type checking:** `mypy` strict (runs for 3.11, 3.14, win32, darwin),
   `basedpyright`, `ty`, `pyrefly`, `zuban` — all must be fully clean, including
   zero warnings (basedpyright warnings fail the gate).
 - **Testing:** `pytest` (+ `pytest-xdist`, `-m <component>` markers via
