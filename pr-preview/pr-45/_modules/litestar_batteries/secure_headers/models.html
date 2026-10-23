@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="amber" data-content_root="../../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>litestar_batteries.secure_headers.models - litestar_batteries</title><link rel="index" title="Index" href="../../../genindex.html" /><link rel="search" title="Search" href="../../../search.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/shibuya.css?v=2ceb65ce" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/togglebutton.css?v=9c3e77be" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sphinx_paramlinks.css" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../../_static/print.css?v=20ff2c19" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-text: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+  --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/><meta property="og:title" content="litestar_batteries.secure_headers.models"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../../index.html">
+      
+      
+      <strong>litestar_batteries</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/hasansezertasan/litestar-batteries" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">Modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../../index.html"><span itemprop="name">litestar_batteries</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">Module code</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">litestar_batteries.secure_headers.models</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <article class="yue" role="main">
+          <h1>Source code for litestar_batteries.secure_headers.models</h1><div class="highlight"><pre>
+<span></span><span data-line="1"><span class="sd">&quot;&quot;&quot;Data types for the secure-headers battery.&quot;&quot;&quot;</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+</span><span data-line="4">
+</span><span data-line="5"><span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+</span><span data-line="6"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
+</span><span data-line="7">
+</span><span data-line="8"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;SecureHeadersConfig&quot;</span><span class="p">]</span>
+</span><span data-line="9">
+</span><span data-line="10">
+</span><span data-line="11"><span class="n">DEFAULT_CONTENT_SECURITY_POLICY</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="12">    <span class="s2">&quot;frame-ancestors &#39;none&#39;; base-uri &#39;self&#39;; form-action &#39;self&#39;; object-src &#39;none&#39;&quot;</span>
+</span><span data-line="13"><span class="p">)</span>
+</span><span data-line="14"><span class="sd">&quot;&quot;&quot;Non-breaking baseline without ``default-src``/``script-src`` (OpenAPI UIs work).&quot;&quot;&quot;</span>
+</span><span data-line="15">
+</span><span data-line="16"><span class="n">DEFAULT_PERMISSIONS_POLICY</span> <span class="o">=</span> <span class="s2">&quot;camera=(), microphone=(), geolocation=()&quot;</span>
+</span><span data-line="17"><span class="sd">&quot;&quot;&quot;Deny the most sensitive browser features by default.&quot;&quot;&quot;</span>
+</span><span data-line="18">
+</span><span data-line="19"><span class="n">_HSTS_PRELOAD_MIN_AGE</span> <span class="o">=</span> <span class="mi">31_536_000</span>
+</span><span data-line="20"><span class="n">_SPACE</span> <span class="o">=</span> <span class="mh">0x20</span>
+</span><span data-line="21"><span class="n">_DEL</span> <span class="o">=</span> <span class="mh">0x7F</span>
+</span><span data-line="22">
+</span><span data-line="23">
+</span><span data-line="24"><span class="k">def</span><span class="w"> </span><span class="nf">_check_header_value</span><span class="p">(</span><span class="n">field_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="25"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Reject values that cannot be sent safely as one HTTP header line.</span>
+</span><span data-line="26">
+</span><span data-line="27"><span class="sd">    Raises:</span>
+</span><span data-line="28"><span class="sd">        ValueError: If the value has a control character or is not latin-1</span>
+</span><span data-line="29"><span class="sd">            encodable.</span>
+</span><span data-line="30"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="31">    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">ord</span><span class="p">(</span><span class="n">char</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">_SPACE</span> <span class="ow">or</span> <span class="nb">ord</span><span class="p">(</span><span class="n">char</span><span class="p">)</span> <span class="o">==</span> <span class="n">_DEL</span> <span class="k">for</span> <span class="n">char</span> <span class="ow">in</span> <span class="n">value</span> <span class="k">if</span> <span class="n">char</span> <span class="o">!=</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">):</span>
+</span><span data-line="32">        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">field_name</span><span class="si">}</span><span class="s2"> must not contain control characters&quot;</span>
+</span><span data-line="33">        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</span><span data-line="34">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="35">        <span class="n">_</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;latin-1&quot;</span><span class="p">)</span>
+</span><span data-line="36">    <span class="k">except</span> <span class="ne">UnicodeEncodeError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+</span><span data-line="37">        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">field_name</span><span class="si">}</span><span class="s2"> must be latin-1 encodable&quot;</span>
+</span><span data-line="38">        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+</span><span data-line="39">
+</span><span data-line="40">
+</span><span data-line="41"><span class="c1"># Fourteen options describe one user-facing policy surface; grouping them into</span>
+</span><span data-line="42"><span class="c1"># sub-configs would break the documented flat API for no behavioral gain.</span>
+<div class="viewcode-block" id="SecureHeadersConfig">
+<a class="viewcode-back" href="../../../modules.html#litestar_batteries.secure_headers.models.SecureHeadersConfig">[docs]</a>
+</span><span data-line="43"><span class="nd">@dataclass</span>
+</span><span data-line="44"><span class="k">class</span><span class="w"> </span><span class="nc">SecureHeadersConfig</span><span class="p">:</span>  <span class="c1"># pylint: disable=too-many-instance-attributes</span>
+</span><span data-line="45"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for :class:`SecureHeadersPlugin`.</span>
+</span><span data-line="46">
+</span><span data-line="47"><span class="sd">    Every header field disables its header when set to ``None`` (or ``False``</span>
+</span><span data-line="48"><span class="sd">    for ``content_type_options``); an empty string also omits the header.</span>
+</span><span data-line="49"><span class="sd">    ``X-XSS-Protection`` is deprecated and is intentionally never sent.</span>
+</span><span data-line="50">
+</span><span data-line="51"><span class="sd">    Attributes:</span>
+</span><span data-line="52"><span class="sd">        hsts_max_age: ``Strict-Transport-Security`` max-age in seconds, sent</span>
+</span><span data-line="53"><span class="sd">            only on HTTPS requests. ``None`` disables HSTS.</span>
+</span><span data-line="54"><span class="sd">        hsts_include_subdomains: Add ``includeSubDomains`` to HSTS.</span>
+</span><span data-line="55"><span class="sd">        hsts_preload: Add ``preload`` to HSTS. Requires ``includeSubDomains``</span>
+</span><span data-line="56"><span class="sd">            and a max-age of at least one year.</span>
+</span><span data-line="57"><span class="sd">        content_type_options: Send ``X-Content-Type-Options: nosniff``.</span>
+</span><span data-line="58"><span class="sd">        frame_options: ``X-Frame-Options`` value.</span>
+</span><span data-line="59"><span class="sd">        content_security_policy: ``Content-Security-Policy`` value.</span>
+</span><span data-line="60"><span class="sd">        content_security_policy_report_only: ``Content-Security-Policy-Report-Only``</span>
+</span><span data-line="61"><span class="sd">            value.</span>
+</span><span data-line="62"><span class="sd">        referrer_policy: ``Referrer-Policy`` value.</span>
+</span><span data-line="63"><span class="sd">        permissions_policy: ``Permissions-Policy`` value.</span>
+</span><span data-line="64"><span class="sd">        cross_origin_opener_policy: ``Cross-Origin-Opener-Policy`` value.</span>
+</span><span data-line="65"><span class="sd">        cross_origin_resource_policy: ``Cross-Origin-Resource-Policy`` value.</span>
+</span><span data-line="66"><span class="sd">        cross_origin_embedder_policy: ``Cross-Origin-Embedder-Policy`` value.</span>
+</span><span data-line="67"><span class="sd">        permitted_cross_domain_policies: ``X-Permitted-Cross-Domain-Policies``</span>
+</span><span data-line="68"><span class="sd">            value.</span>
+</span><span data-line="69"><span class="sd">        override: Replace headers a handler already set instead of leaving them.</span>
+</span><span data-line="70"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="71">
+</span><span data-line="72">    <span class="n">hsts_max_age</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">_HSTS_PRELOAD_MIN_AGE</span>
+</span><span data-line="73">    <span class="n">hsts_include_subdomains</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+</span><span data-line="74">    <span class="n">hsts_preload</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+</span><span data-line="75">    <span class="n">content_type_options</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+</span><span data-line="76">    <span class="n">frame_options</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;DENY&quot;</span><span class="p">,</span> <span class="s2">&quot;SAMEORIGIN&quot;</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="s2">&quot;DENY&quot;</span>
+</span><span data-line="77">    <span class="n">content_security_policy</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">DEFAULT_CONTENT_SECURITY_POLICY</span>
+</span><span data-line="78">    <span class="n">content_security_policy_report_only</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="79">    <span class="n">referrer_policy</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="s2">&quot;strict-origin-when-cross-origin&quot;</span>
+</span><span data-line="80">    <span class="n">permissions_policy</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">DEFAULT_PERMISSIONS_POLICY</span>
+</span><span data-line="81">    <span class="n">cross_origin_opener_policy</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="s2">&quot;same-origin&quot;</span>
+</span><span data-line="82">    <span class="n">cross_origin_resource_policy</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="83">    <span class="n">cross_origin_embedder_policy</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="84">    <span class="n">permitted_cross_domain_policies</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="s2">&quot;none&quot;</span>
+</span><span data-line="85">    <span class="n">override</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+</span><span data-line="86">
+</span><span data-line="87">    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="88"><span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate header values and the HSTS directive combination.&quot;&quot;&quot;</span>
+</span><span data-line="89">        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">_response_headers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span data-line="90">            <span class="n">_check_header_value</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+</span><span data-line="91">        <span class="bp">self</span><span class="o">.</span><span class="n">_check_hsts</span><span class="p">()</span>
+</span><span data-line="92">
+</span><span data-line="93">    <span class="k">def</span><span class="w"> </span><span class="nf">_check_hsts</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="94"><span class="w">        </span><span class="sd">&quot;&quot;&quot;Reject inconsistent HSTS settings.</span>
+</span><span data-line="95">
+</span><span data-line="96"><span class="sd">        Raises:</span>
+</span><span data-line="97"><span class="sd">            ValueError: If max-age is negative, a directive is set while HSTS is</span>
+</span><span data-line="98"><span class="sd">                disabled, or ``preload`` lacks its prerequisites.</span>
+</span><span data-line="99"><span class="sd">        &quot;&quot;&quot;</span>
+</span><span data-line="100">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hsts_max_age</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="101">            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hsts_include_subdomains</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">hsts_preload</span><span class="p">:</span>
+</span><span data-line="102">                <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;hsts_include_subdomains and hsts_preload require hsts_max_age&quot;</span>
+</span><span data-line="103">                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</span><span data-line="104">            <span class="k">return</span>
+</span><span data-line="105">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hsts_max_age</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+</span><span data-line="106">            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;hsts_max_age must not be negative&quot;</span>
+</span><span data-line="107">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</span><span data-line="108">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hsts_preload</span> <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span>
+</span><span data-line="109">            <span class="bp">self</span><span class="o">.</span><span class="n">hsts_include_subdomains</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">hsts_max_age</span> <span class="o">&gt;=</span> <span class="n">_HSTS_PRELOAD_MIN_AGE</span>
+</span><span data-line="110">        <span class="p">):</span>
+</span><span data-line="111">            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;hsts_preload needs hsts_include_subdomains and a 1 year hsts_max_age&quot;</span>
+</span><span data-line="112">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span></div>
+
+</span><span data-line="113">
+</span><span data-line="114">
+</span><span data-line="115"><span class="k">def</span><span class="w"> </span><span class="nf">_response_headers</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">SecureHeadersConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="o">...</span><span class="p">]:</span>
+</span><span data-line="116"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the enabled static headers as lowercase ``(name, value)`` pairs.</span>
+</span><span data-line="117">
+</span><span data-line="118"><span class="sd">    Returns:</span>
+</span><span data-line="119"><span class="sd">        The headers sent on every response, excluding HSTS (see</span>
+</span><span data-line="120"><span class="sd">        :func:`_hsts_value`, which is conditional on the request scheme).</span>
+</span><span data-line="121"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="122">    <span class="n">rows</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="123">        <span class="p">(</span><span class="s2">&quot;x-content-type-options&quot;</span><span class="p">,</span> <span class="s2">&quot;nosniff&quot;</span> <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">content_type_options</span> <span class="k">else</span> <span class="kc">None</span><span class="p">),</span>
+</span><span data-line="124">        <span class="p">(</span><span class="s2">&quot;x-frame-options&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">frame_options</span><span class="p">),</span>
+</span><span data-line="125">        <span class="p">(</span><span class="s2">&quot;content-security-policy&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">content_security_policy</span><span class="p">),</span>
+</span><span data-line="126">        <span class="p">(</span>
+</span><span data-line="127">            <span class="s2">&quot;content-security-policy-report-only&quot;</span><span class="p">,</span>
+</span><span data-line="128">            <span class="n">config</span><span class="o">.</span><span class="n">content_security_policy_report_only</span><span class="p">,</span>
+</span><span data-line="129">        <span class="p">),</span>
+</span><span data-line="130">        <span class="p">(</span><span class="s2">&quot;referrer-policy&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">referrer_policy</span><span class="p">),</span>
+</span><span data-line="131">        <span class="p">(</span><span class="s2">&quot;permissions-policy&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">permissions_policy</span><span class="p">),</span>
+</span><span data-line="132">        <span class="p">(</span><span class="s2">&quot;cross-origin-opener-policy&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">cross_origin_opener_policy</span><span class="p">),</span>
+</span><span data-line="133">        <span class="p">(</span><span class="s2">&quot;cross-origin-resource-policy&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">cross_origin_resource_policy</span><span class="p">),</span>
+</span><span data-line="134">        <span class="p">(</span><span class="s2">&quot;cross-origin-embedder-policy&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">cross_origin_embedder_policy</span><span class="p">),</span>
+</span><span data-line="135">        <span class="p">(</span><span class="s2">&quot;x-permitted-cross-domain-policies&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">permitted_cross_domain_policies</span><span class="p">),</span>
+</span><span data-line="136">    <span class="p">)</span>
+</span><span data-line="137">    <span class="k">return</span> <span class="nb">tuple</span><span class="p">((</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">rows</span> <span class="k">if</span> <span class="n">value</span><span class="p">)</span>
+</span><span data-line="138">
+</span><span data-line="139">
+</span><span data-line="140"><span class="k">def</span><span class="w"> </span><span class="nf">_hsts_value</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">SecureHeadersConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pyright: ignore[reportUnusedFunction]</span>
+</span><span data-line="141"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the ``Strict-Transport-Security`` value, or ``None`` if disabled.</span>
+</span><span data-line="142">
+</span><span data-line="143"><span class="sd">    Returns:</span>
+</span><span data-line="144"><span class="sd">        The assembled directive string.</span>
+</span><span data-line="145"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="146">    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">hsts_max_age</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="147">        <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="148">    <span class="n">directives</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;max-age=</span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">hsts_max_age</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span>
+</span><span data-line="149">    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">hsts_include_subdomains</span><span class="p">:</span>
+</span><span data-line="150">        <span class="n">directives</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;includeSubDomains&quot;</span><span class="p">)</span>
+</span><span data-line="151">    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">hsts_preload</span><span class="p">:</span>
+</span><span data-line="152">        <span class="n">directives</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;preload&quot;</span><span class="p">)</span>
+</span><span data-line="153">    <span class="k">return</span> <span class="s2">&quot;; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">directives</span><span class="p">)</span>
+</span></pre></div>
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2026, Hasan Sezer Taşan</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+  <a href="https://github.com/hasansezertasan/litestar-batteries" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../../_static/copybutton.js?v=f281be69"></script>
+      <script>let toggleHintShow = 'Click to show';</script>
+      <script>let toggleHintHide = 'Click to hide';</script>
+      <script>let toggleOpenOnPrint = 'true';</script>
+      <script src="../../../_static/togglebutton.js?v=b8b12719"></script>
+      <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
+      <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+      <script src="../../../_static/shibuya.js?v=50760d75"></script>
+      <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script></body>
+</html>
