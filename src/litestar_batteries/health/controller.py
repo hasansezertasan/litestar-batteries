@@ -40,7 +40,7 @@ async def _guarded(hc: HealthCheck) -> None:
     """
     try:
         await hc.check()
-    except asyncio.TimeoutError as exc:
+    except TimeoutError as exc:
         raise _CheckFailedError(str(exc)) from exc
 
 
@@ -60,7 +60,7 @@ async def _run_check(hc: HealthCheck) -> None:
         return
     try:
         await asyncio.wait_for(_guarded(hc), hc.timeout)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         raise _DeadlineExceededError from None
 
 
