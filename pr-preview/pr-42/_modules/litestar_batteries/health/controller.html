@@ -154,7 +154,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="40"><span class="sd">    &quot;&quot;&quot;</span>
 </span><span data-line="41">    <span class="k">try</span><span class="p">:</span>
 </span><span data-line="42">        <span class="k">await</span> <span class="n">hc</span><span class="o">.</span><span class="n">check</span><span class="p">()</span>
-</span><span data-line="43">    <span class="k">except</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TimeoutError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="43">    <span class="k">except</span> <span class="ne">TimeoutError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
 </span><span data-line="44">        <span class="k">raise</span> <span class="n">_CheckFailedError</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
 </span><span data-line="45">
 </span><span data-line="46">
@@ -174,7 +174,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="60">        <span class="k">return</span>
 </span><span data-line="61">    <span class="k">try</span><span class="p">:</span>
 </span><span data-line="62">        <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span><span class="n">_guarded</span><span class="p">(</span><span class="n">hc</span><span class="p">),</span> <span class="n">hc</span><span class="o">.</span><span class="n">timeout</span><span class="p">)</span>
-</span><span data-line="63">    <span class="k">except</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TimeoutError</span><span class="p">:</span>
+</span><span data-line="63">    <span class="k">except</span> <span class="ne">TimeoutError</span><span class="p">:</span>
 </span><span data-line="64">        <span class="k">raise</span> <span class="n">_DeadlineExceededError</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
 </span><span data-line="65">
 </span><span data-line="66">
