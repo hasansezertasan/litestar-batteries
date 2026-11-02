@@ -536,9 +536,12 @@ env_list = [
   "3.13",
   "3.12",
   "3.11",
+<<<<<<< before updating
   # Oldest supported litestar (see [tool.tox.env.floor]); CI adds it to the
   # ubuntu test-core tox_args.
   "floor",
+=======
+>>>>>>> after updating
 ]
 requires = ["tox>=4"]
 
